@@ -13,8 +13,22 @@
 .globl main
 main:
 	jal abre_arquivo
-    	jal le_instrucao
+    	jal le_arquivo
+    	
+    	jal pega_instrucao
     	jal imprime_instrucao
+    	
+    	jal passa_instrucao
+    	
+    	jal pega_instrucao
+    	jal imprime_instrucao
+    	
+    	jal passa_instrucao
+    	
+    	jal pega_instrucao
+    	jal imprime_instrucao
+    	
+    	jal fecha_arquivo
     	
     	li      $v0, 10             	# Código do sistema para encerrar o programa
     	syscall     
@@ -33,20 +47,38 @@ abre_arquivo:
     	jr $ra
                    	
 # Lê uma instrução do arquivo binário
-le_instrucao:
+le_arquivo:
     	li      $v0, 14              	# Código do sistema para ler arquivo
     	lw      $a0, desc_arquivo    	# Carrega o descritor do arquivo
     	la      $a1, buff_leitura    	# Endereço do buffer de leitura
-    	li      $a2, 4               	# Número de bytes a serem lidos (tamanho da instrução)
+    	li      $a2, 1024               # Número de bytes a serem lidos (tamanho da instrução)
     	syscall                      	# Chamada do sistema
     	# Verifica erro
     	bltz    $v0, erro_leitura    	# Se $v0 < 0, houve um erro
-    	# Carrega a instrução lida no buffer temporário para variavel de instrucao
-    	lw      $t0, 0($a1)          	# Carrega a instrução lida no buffer temporário
+    	
+pega_instrucao:
+    	lw	$t0, n_instrucao	# Carrega qual o numero da instrucao que vai ser pega
+    	la	$t1, buff_leitura	# Carrega buffer de leitura
+    	
+    	# Operacao de pegar a instrucao desejada
+    	add 	$t1, $t1, $t0		# Soma a posicao com o buffer para pegar apenas a instrucao desejada
+    	lw      $t2, 0($t1)          	# Carrega a instrução lida no buffer temporário
     	la	$t1, instrucao		# Armazena o endereco da variavel de instrucao
-    	sw      $t0, 0($t1)       	# Armazena a instrução na variavel instrucao
-    	jr      $ra
+    	sw      $t2, 0($t1)       	# Armazena a instrução na variavel instrucao
+    	
+    	# Opera para a proxima instrucao
+    	#addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
+    	#sw	$t0, n_instrucao	# Atualiza valor do numero da instrucao
+    	
+    	jr      $ra			
 
+passa_instrucao:
+	lw	$t0, n_instrucao	# Carrega qual o numero da instrucao que vai ser pega
+	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
+    	sw	$t0, n_instrucao	# Atualiza valor do numero da instrucao
+    	
+    	jr      $ra
+    	
 # Imprime instrucao
 imprime_instrucao:
     	# Exibe a instrução binária lida
@@ -58,14 +90,14 @@ imprime_instrucao:
 	lw	$a0, instrucao          # Endereço do buffer de leitura
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
+    	
+    	jr      $ra	
 
-    	# Fecha o arquivo
+fecha_arquivo:
+# Fecha o arquivo
     	li      $v0, 16             	# Código do sistema para fechar arquivo
     	syscall                     	# Chamada do sistema
     	jr      $ra
-
-
-
 
 
 
@@ -107,7 +139,7 @@ end_pilha:  	.word 0x7FFFEFFC
 ##################################
 
 ### VARIAVEIS PARA MANIPULACAO DE ARQUIVO ###
-buff_leitura:   .word 0
+buff_leitura:   .space 1024
 desc_arquivo:   .word 0
 instrucao:	.word 0
 n_instrucao:	.word 0
