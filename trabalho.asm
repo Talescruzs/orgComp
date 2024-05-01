@@ -15,21 +15,19 @@ main:
 	jal abre_arquivo
     	jal le_arquivo
     	
+loop:
     	jal pega_instrucao
-    	jal imprime_instrucao
+    	lw $s0, instrucao
+    	beqz  $s0, loop_fim
     	
+    	jal imprime_instrucao
     	jal passa_instrucao
+    	j loop
+
+loop_fim:
     	
-    	jal pega_instrucao
-    	jal imprime_instrucao
-    	
-    	jal passa_instrucao
-    	
-    	jal pega_instrucao
-    	jal imprime_instrucao
     	
     	jal fecha_arquivo
-    	
     	li      $v0, 10             	# Código do sistema para encerrar o programa
     	syscall     
 
