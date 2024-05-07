@@ -76,33 +76,133 @@ fecha_arquivo:
 #############################################
 
 #### DECODIFICACAO DE INSTRUCAO ####
+pega_op: # $v0 <-- op_code
+	srl     $t0, $a0, 26
+	move    $v0, $t0
+	jr      $ra
+
+pega_rs: # $v0 <-- r_s
+	sll     $t0, $a0, 6
+	srl     $t0, $t0, 27
+	move    $v0, $t0
+	jr      $ra
+
+pega_rt: # $v0 <-- r_t
+	sll     $t0, $a0, 11
+	srl     $t0, $t0, 27
+	move    $v0, $t0
+	jr      $ra
+	
+pega_rd: # $v0 <-- r_d
+	sll     $t0, $a0, 16
+	srl     $t0, $t0, 27
+	move    $v0, $t0
+	jr      $ra
+	
 decodifica:
-	la 	$sp, 0($ra)
+	sw 	$ra, 0($sp)
+	la	$sp, 4($sp)
+	
+	lw 	$a0, instrucao
+	
+	jal 	pega_op
+	sw 	$v0, op_code
+	jal 	pega_rs
+	sw 	$v0, r_s
+	jal 	pega_rt
+	sw 	$v0, r_t
+	jal 	pega_rd
+	sw 	$v0, r_d
 	
 	jal imprime_instrucao
-	
-	la	$ra, 0($sp)
+	jal imprime_op_code
+	jal imprime_rs
+	jal imprime_rt
+	jal imprime_rd
+
+	la	$sp, -4($sp)
+	lw	$ra, 0($sp)
 	jr      $ra
 
 ####################################
 
-##### OPERACOES SIMULADAS #####
 # Imprime instrucao
-imprime_instrucao:
+imprime_geral_hex: # a0 = menssagem de contexto; a1 = valor hexadecimal
     	# Exibe a instrução binária lida
     	li      $v0, 4              	# Código do sistema para imprimir string
-    	la      $a0, msg_instrucao  	# Endereço da mensagem "Instrução binária lida: "
     	syscall                     	# Chamada do sistema
+
     	# Exibe os bytes da instrução binária
-	lw	$a0, instrucao          # Endereço do buffer de leitura
+	lw	$a0, 0($a1)          	# Endereço do buffer de leitura
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
+    	
+    	jr      $ra
+    	
+imprime_instrucao:
+    	# Exibe a instrução binária lida
+    	sw 	$ra, 0($sp)
+	la	$sp, 4($sp)
+	
+	la	$a0, msg_instrucao
+	la	$a1, instrucao
+    	jal 	imprime_geral_hex
+    	
+    	la	$sp, -4($sp)
+	lw	$ra, 0($sp)
     	jr      $ra	
-###############################
 
+imprime_op_code:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_op_code  	# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
 
+    	# Exibe os bytes da instrução binária
+	lw	$a0, op_code          # Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	
+    	jr      $ra	
+    	
+imprime_rs:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_rs  		# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
 
+    	# Exibe os bytes da instrução binária
+	lw	$a0, r_s          # Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	
+    	jr      $ra	
 
+imprime_rt:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_rt  		# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
+
+    	# Exibe os bytes da instrução binária
+	lw	$a0, r_t          # Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	
+    	jr      $ra	
+
+imprime_rd:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_rd  		# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
+
+    	# Exibe os bytes da instrução binária
+	lw	$a0, r_d          # Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	
+    	jr      $ra	
 
 ###### TRATAMENTO DE ERROS ######
 termina:
@@ -125,6 +225,7 @@ erro_leitura:
 #memory:       .word 0xABCDE080
 
 ##### VARIAVEIS DA SIMULACAO #####
+ 
 PC:         	.word 0
 IR:         	.word 0
 regs:       	.space 128
@@ -141,6 +242,12 @@ end_pilha:  	.word 0x7FFFEFFC
 buff_leitura:   .space 1024
 desc_arquivo:   .word 0
 instrucao:	.word 0
+
+op_code:	.word 0
+r_s:		.word 0
+r_t:		.word 0
+r_d:		.word 0
+
 n_instrucao:	.word 0
 nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
 #############################################
@@ -149,6 +256,10 @@ nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
 
 # I/O #
 msg_instrucao: 	.asciiz "\nInstrução binária lida: "
+msg_op_code: 	.asciiz "\nOp_code lida: "
+msg_rs: 	.asciiz "\nrs lido: "
+msg_rt: 	.asciiz "\nrt lido: "
+msg_rd: 	.asciiz "\nrd lido: "
 #######
 
 # ERRO #
