@@ -76,37 +76,32 @@ fecha_arquivo:
 #############################################
 
 #### DECODIFICACAO DE INSTRUCAO ####
-pega_op: # $v0 <-- op_code
+pega_op: # $a0 = instrucao; $v0 <-- op_code
 	srl     $t0, $a0, 26
 	move    $v0, $t0
 	jr      $ra
 
-pega_rs: # $v0 <-- r_s
+pega_rs: # $a0 = instrucao; $v0 <-- r_s
 	sll     $t0, $a0, 6
 	srl     $t0, $t0, 27
 	move    $v0, $t0
 	jr      $ra
 
-pega_rt: # $v0 <-- r_t
+pega_rt: # $a0 = instrucao; $v0 <-- r_t
 	sll     $t0, $a0, 11
 	srl     $t0, $t0, 27
 	move    $v0, $t0
 	jr      $ra
 	
-pega_rd: # $v0 <-- r_d
+pega_rd: # $a0 = instrucao; $v0 <-- r_d
 	sll     $t0, $a0, 16
 	srl     $t0, $t0, 27
 	move    $v0, $t0
 	jr      $ra
 	
-decodifica:
-	sw 	$ra, 0($sp)
-	la	$sp, 4($sp)
+tipo_r:
 	
-	lw 	$a0, instrucao
-	
-	jal 	pega_op
-	sw 	$v0, op_code
+	lw	$a0, instrucao
 	jal 	pega_rs
 	sw 	$v0, r_s
 	jal 	pega_rt
@@ -114,14 +109,52 @@ decodifica:
 	jal 	pega_rd
 	sw 	$v0, r_d
 	
+#	jal imprime_rs
+#	jal imprime_rt
+#	jal imprime_rd
+
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_r
+    	syscall                     	# Chamada do sistema
+
+	j       ponto_retorno_decodificacao
+	
+tipo_i:
+	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_i
+    	syscall                     	# Chamada do sistema
+    	
+	j       ponto_retorno_decodificacao
+
+tipo_j:
+
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_j
+    	syscall                     	# Chamada do sistema
+
+	j       ponto_retorno_decodificacao
+	
+decodifica:
+	addi    $sp, $sp, -4
+	sw 	$ra, 0($sp)
+	
+	lw 	$a0, instrucao	
+	jal 	pega_op
+	sw 	$v0, op_code
+	
 	jal imprime_instrucao
 	jal imprime_op_code
-	jal imprime_rs
-	jal imprime_rt
-	jal imprime_rd
-
-	la	$sp, -4($sp)
+	
+	lw	$t0, op_code
+	
+	beqz    $t0, tipo_r		# if opcode == 0 instrucao do tipo r
+	bge 	$t0, 4, tipo_i		# else if opcode >= 4 instrucao do tipo i
+	j	tipo_j			# else instrucao do tipo j
+	ponto_retorno_decodificacao:
+	
 	lw	$ra, 0($sp)
+	addi    $sp, $sp, 4
 	jr      $ra
 
 ####################################
@@ -141,15 +174,15 @@ imprime_geral_hex: # a0 = menssagem de contexto; a1 = valor hexadecimal
     	
 imprime_instrucao:
     	# Exibe a instrução binária lida
-    	sw 	$ra, 0($sp)
-	la	$sp, 4($sp)
+    	addi    $sp, $sp, -4
+	sw 	$ra, 0($sp)
 	
 	la	$a0, msg_instrucao
 	la	$a1, instrucao
     	jal 	imprime_geral_hex
     	
-    	la	$sp, -4($sp)
-	lw	$ra, 0($sp)
+    	lw	$ra, 0($sp)
+	addi    $sp, $sp, 4
     	jr      $ra	
 
 imprime_op_code:
@@ -225,7 +258,6 @@ erro_leitura:
 #memory:       .word 0xABCDE080
 
 ##### VARIAVEIS DA SIMULACAO #####
- 
 PC:         	.word 0
 IR:         	.word 0
 regs:       	.space 128
@@ -235,7 +267,6 @@ memoria_pilha:  .space 1024
 end_text:   	.word 0x00400000
 end_data:   	.word 0x10010000
 end_pilha:  	.word 0x7FFFEFFC
-
 ##################################
 
 ### VARIAVEIS PARA MANIPULACAO DE ARQUIVO ###
@@ -253,18 +284,20 @@ nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
 #############################################
 
 ############## STRINGS ##############
-
 # I/O #
 msg_instrucao: 	.asciiz "\nInstrução binária lida: "
 msg_op_code: 	.asciiz "\nOp_code lida: "
 msg_rs: 	.asciiz "\nrs lido: "
 msg_rt: 	.asciiz "\nrt lido: "
 msg_rd: 	.asciiz "\nrd lido: "
-#######
 
+str_tipo_r:	.asciiz "\ntipo r "
+str_tipo_i:	.asciiz "\ntipo i "
+str_tipo_j:	.asciiz "\ntipo j "
+
+#######
 # ERRO #
 msg_erro_abert: .asciiz "Erro ao abrir o arquivo\n"
 msg_erro_leitura: .asciiz "Erro ao ler instrucao\n"
 ########
-
 #####################################
