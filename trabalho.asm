@@ -76,29 +76,39 @@ fecha_arquivo:
 #############################################
 
 #### DECODIFICACAO DE INSTRUCAO ####
+
+## PEGA PARTE DA INSTRUCAO ##
 pega_op: # $a0 = instrucao; $v0 <-- op_code
 	srl     $t0, $a0, 26
 	move    $v0, $t0
 	jr      $ra
-
 pega_rs: # $a0 = instrucao; $v0 <-- r_s
 	sll     $t0, $a0, 6
 	srl     $t0, $t0, 27
 	move    $v0, $t0
 	jr      $ra
-
 pega_rt: # $a0 = instrucao; $v0 <-- r_t
 	sll     $t0, $a0, 11
 	srl     $t0, $t0, 27
 	move    $v0, $t0
 	jr      $ra
-	
 pega_rd: # $a0 = instrucao; $v0 <-- r_d
 	sll     $t0, $a0, 16
 	srl     $t0, $t0, 27
 	move    $v0, $t0
 	jr      $ra
-	
+pega_shamt: # $a0 = instrucao; $v0 <-- shamt
+	sll     $t0, $a0, 21
+	srl     $t0, $t0, 27
+	move    $v0, $t0
+	jr      $ra
+pega_funct: # $a0 = instrucao; $v0 <-- funct
+	sll     $t0, $a0, 26
+	srl     $t0, $t0, 26
+	move    $v0, $t0
+	jr      $ra
+#############################
+## TIPOS DE OPERACAO ##
 tipo_r:
 	
 	lw	$a0, instrucao
@@ -108,10 +118,20 @@ tipo_r:
 	sw 	$v0, r_t
 	jal 	pega_rd
 	sw 	$v0, r_d
+	jal 	pega_shamt
+	sw 	$v0, shamt
+	jal 	pega_funct
+	sw 	$v0, funct
 	
-#	jal imprime_rs
-#	jal imprime_rt
-#	jal imprime_rd
+	jal imprime_rs
+	jal imprime_rt
+	jal imprime_rd
+	jal imprime_shamt
+	jal imprime_funct
+	
+	beq  	$t0, 0x00000020, fadd
+	
+	retorno_tipo_r:
 
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_r
@@ -134,7 +154,7 @@ tipo_j:
     	syscall                     	# Chamada do sistema
 
 	j       ponto_retorno_decodificacao
-	
+#######################
 decodifica:
 	addi    $sp, $sp, -4
 	sw 	$ra, 0($sp)
@@ -159,7 +179,15 @@ decodifica:
 
 ####################################
 
-# Imprime instrucao
+###### FUNCOES DO SIMULADOR ######
+#### TIPO R ####
+fadd: #funcao que simula operacao add do processador MIPS
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_add
+    	syscall                     	# Chamada do sistema
+	j	retorno_tipo_r
+################
+#### IMPRESSAO ####
 imprime_geral_hex: # a0 = menssagem de contexto; a1 = valor hexadecimal
     	# Exibe a instrução binária lida
     	li      $v0, 4              	# Código do sistema para imprimir string
@@ -176,67 +204,74 @@ imprime_instrucao:
     	# Exibe a instrução binária lida
     	addi    $sp, $sp, -4
 	sw 	$ra, 0($sp)
-	
 	la	$a0, msg_instrucao
 	la	$a1, instrucao
     	jal 	imprime_geral_hex
-    	
     	lw	$ra, 0($sp)
 	addi    $sp, $sp, 4
     	jr      $ra	
-
 imprime_op_code:
     	# Exibe a instrução binária lida
     	li      $v0, 4              	# Código do sistema para imprimir string
     	la      $a0, msg_op_code  	# Endereço da mensagem "Instrução binária lida: "
     	syscall                     	# Chamada do sistema
-
     	# Exibe os bytes da instrução binária
 	lw	$a0, op_code          # Endereço do buffer de leitura
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
-    	
     	jr      $ra	
-    	
 imprime_rs:
     	# Exibe a instrução binária lida
     	li      $v0, 4              	# Código do sistema para imprimir string
     	la      $a0, msg_rs  		# Endereço da mensagem "Instrução binária lida: "
     	syscall                     	# Chamada do sistema
-
     	# Exibe os bytes da instrução binária
 	lw	$a0, r_s          # Endereço do buffer de leitura
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
-    	
     	jr      $ra	
-
 imprime_rt:
     	# Exibe a instrução binária lida
     	li      $v0, 4              	# Código do sistema para imprimir string
     	la      $a0, msg_rt  		# Endereço da mensagem "Instrução binária lida: "
     	syscall                     	# Chamada do sistema
-
     	# Exibe os bytes da instrução binária
 	lw	$a0, r_t          # Endereço do buffer de leitura
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
-    	
     	jr      $ra	
-
 imprime_rd:
     	# Exibe a instrução binária lida
     	li      $v0, 4              	# Código do sistema para imprimir string
     	la      $a0, msg_rd  		# Endereço da mensagem "Instrução binária lida: "
     	syscall                     	# Chamada do sistema
-
     	# Exibe os bytes da instrução binária
 	lw	$a0, r_d          # Endereço do buffer de leitura
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
-    	
     	jr      $ra	
-
+imprime_shamt:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_shamt  	# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
+    	# Exibe os bytes da instrução binária
+	lw	$a0, shamt          	# Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	jr      $ra
+imprime_funct:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_funct  	# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
+    	# Exibe os bytes da instrução binária
+	lw	$a0, funct          	# Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	jr      $ra
+###################
+##################################
 ###### TRATAMENTO DE ERROS ######
 termina:
 	li      $v0, 4              	# Código do sistema para imprimir string
@@ -278,6 +313,9 @@ op_code:	.word 0
 r_s:		.word 0
 r_t:		.word 0
 r_d:		.word 0
+shamt:		.word 0
+funct:		.word 0
+endereco:	.word 0
 
 n_instrucao:	.word 0
 nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
@@ -290,10 +328,14 @@ msg_op_code: 	.asciiz "\nOp_code lida: "
 msg_rs: 	.asciiz "\nrs lido: "
 msg_rt: 	.asciiz "\nrt lido: "
 msg_rd: 	.asciiz "\nrd lido: "
+msg_shamt: 	.asciiz "\nshamt lido: "
+msg_funct: 	.asciiz "\nfunct lido: "
 
 str_tipo_r:	.asciiz "\ntipo r "
 str_tipo_i:	.asciiz "\ntipo i "
 str_tipo_j:	.asciiz "\ntipo j "
+
+str_add:	.asciiz "\nadd "
 
 #######
 # ERRO #
