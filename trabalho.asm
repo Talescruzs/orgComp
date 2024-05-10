@@ -129,6 +129,7 @@ tipo_r:
 	jal imprime_shamt
 	jal imprime_funct
 	
+	lw	$t0, funct
 	beq  	$t0, 0x00000020, fadd
 	
 	retorno_tipo_r:
@@ -185,6 +186,37 @@ fadd: #funcao que simula operacao add do processador MIPS
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_add
     	syscall                     	# Chamada do sistema
+    	
+    	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+    	
+    	lw	$t1, r_d		# $t1 <- numero do registrador de destino simulado
+    	li	$s0, 4			# Insere tamanho do registrador em $s0
+    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posição
+    	mflo  	$t1			# $t1 <- registrador de destino simulado
+    	add 	$t2, $t0, $t1		# $t2 <- endereco do registrador de destino simulado
+    	
+    	lw	$t1, r_s
+    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posição
+    	mflo  	$t1			# $t1 <- registrador de inicio da soma simulado
+    	add 	$t3, $t0, $t1		# $t3 <- endereco do registrador inicio da soma simulado
+    	
+    	lw	$t1, r_t
+    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posição
+    	mflo  	$t1			# $t1 <- registrador dois da soma simulado
+    	add 	$t4, $t0, $t1		# $t4 <- endereco do registrador dois da soma simulado
+    	
+    	li	$s0, 4			# Insere tamanho do registrador em $s0
+    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posição
+    	mflo  	$t1			# $t1 <- registrador de destino
+    	
+    	lw	$t5, 0($t2)		# Valor do registrador de destino simulado
+    	lw	$t6, 0($t3)		# Valor do registrador um da soma simulado
+    	lw	$t7, 0($t4)		# Valor do registrador dois da soma simulado
+    	
+    	add	$t5, $t6, $t7		# Soma dos valores dos registradores da soma
+    	
+    	sw	$t5, 0($t2)		# Insere o valor da soma no registrador de destino simulado
+    	
 	j	retorno_tipo_r
 ################
 #### IMPRESSAO ####
