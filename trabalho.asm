@@ -107,10 +107,24 @@ pega_funct: # $a0 = instrucao; $v0 <-- funct
 	srl     $t0, $t0, 26
 	move    $v0, $t0
 	jr      $ra
+	
+pega_endereco: # $a0 = instrucao; $v0 <-- endereco
+	sll     $t0, $a0, 5
+	srl     $t0, $t0, 5
+	move    $v0, $t0
+	jr      $ra
+pega_int: # $a0 = instrucao; $v0 <-- inteiro em complemento de 2
+	sll     $t0, $a0, 16
+	sra     $t0, $t0, 16
+	move    $v0, $t0
+	jr      $ra
 #############################
 ## TIPOS DE OPERACAO ##
 tipo_r:
-	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_r
+    	syscall                     	# Chamada do sistema
+    	
 	lw	$a0, instrucao
 	jal 	pega_rs
 	sw 	$v0, r_s
@@ -130,22 +144,27 @@ tipo_r:
 	jal imprime_funct
 	
 	lw	$t0, funct
-	beq  	$t0, 0x00000020, fadd
+	beq  	$t0, 0x20, fadd
 	
 	retorno_tipo_r:
-
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_r
-    	syscall                     	# Chamada do sistema
-
 	j       ponto_retorno_decodificacao
-	
 tipo_i:
-	
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_i
     	syscall                     	# Chamada do sistema
     	
+	lw	$a0, instrucao
+	jal 	pega_rs
+	sw 	$v0, r_s
+	jal 	pega_rt
+	sw 	$v0, r_t
+	
+	jal 	pega_int 		# Aceita numeros negativos (provavel que seja mudado)
+	sw 	$v0, v_imediato
+	
+	jal imprime_rs
+	jal imprime_rt
+	jal imprime_int
 	j       ponto_retorno_decodificacao
 
 tipo_j:
@@ -153,7 +172,11 @@ tipo_j:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_j
     	syscall                     	# Chamada do sistema
-
+    	lw	$a0, instrucao
+	jal 	pega_endereco
+	sw 	$v0, endereco
+	jal imprime_end
+	
 	j       ponto_retorno_decodificacao
 #######################
 decodifica:
@@ -302,6 +325,26 @@ imprime_funct:
     	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
     	syscall                     	# Chamada do sistema
     	jr      $ra
+imprime_end:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_end  	# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
+    	# Exibe os bytes da instrução binária
+	lw	$a0, endereco          	# Endereço do buffer de leitura
+    	li      $v0, 34             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	jr      $ra
+imprime_int:
+    	# Exibe a instrução binária lida
+    	li      $v0, 4              	# Código do sistema para imprimir string
+    	la      $a0, msg_imediato  	# Endereço da mensagem "Instrução binária lida: "
+    	syscall                     	# Chamada do sistema
+    	# Exibe os bytes da instrução binária
+	lw	$a0, v_imediato         # Endereço do buffer de leitura
+    	li      $v0, 1             	# Código do sistema para imprimir bytes em hexadecimal
+    	syscall                     	# Chamada do sistema
+    	jr      $ra
 ###################
 ##################################
 ###### TRATAMENTO DE ERROS ######
@@ -348,6 +391,7 @@ r_d:		.word 0
 shamt:		.word 0
 funct:		.word 0
 endereco:	.word 0
+v_imediato:	.word 0
 
 n_instrucao:	.word 0
 nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
@@ -362,6 +406,8 @@ msg_rt: 	.asciiz "\nrt lido: "
 msg_rd: 	.asciiz "\nrd lido: "
 msg_shamt: 	.asciiz "\nshamt lido: "
 msg_funct: 	.asciiz "\nfunct lido: "
+msg_end: 	.asciiz "\nendereco lido: "
+msg_imediato: 	.asciiz "\nvalor imediato lido: "
 
 str_tipo_r:	.asciiz "\ntipo r "
 str_tipo_i:	.asciiz "\ntipo i "
