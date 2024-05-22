@@ -11,6 +11,25 @@
 #      	M     	O			#
 .text        
 .globl main
+
+### PROCESSOS INICIAIS ###
+ini:					# Processos de inicialização do programa
+	jal	ajusta_sp_simulado
+	jal	ajusta_pc_simulado
+	j 	main
+
+ajusta_sp_simulado:
+	la 	$t0, regs
+	la	$t1, 116($t0)		# $t1 <- endereço do registrador $sp simulado
+	la 	$t0, m_pilha		# $t0 <- endereço inicial da pilha simulada
+	sw	$t1, 0($t0)		# $sp simulado <- endereço inicial da pilha
+	jr	$ra	
+ajusta_pc_simulado:
+	la 	$t0, instrucao
+	la 	$t1, m_text		# $t0 <- endereço inicial da pilha simulada
+	sw	$t0, 0($t1)		# $sp simulado <- endereço inicial da pilha
+	jr	$ra
+##########################
 main:
 	jal abre_arquivo
     	jal le_arquivo
@@ -46,7 +65,7 @@ abre_arquivo:
 le_arquivo:
     	li      $v0, 14              	# Código do sistema para ler arquivo
     	lw      $a0, desc_arquivo    	# Carrega o descritor do arquivo
-    	la      $a1, buff_leitura    	# Endereço do buffer de leitura
+    	la      $a1, m_text    		# Endereço do buffer de leitura
     	li      $a2, 1024               # Número de bytes a serem lidos (tamanho da instrução)
     	syscall                      	# Chamada do sistema
     	# Verifica erro
@@ -55,7 +74,7 @@ le_arquivo:
     	
 pega_instrucao:
     	lw	$t0, n_instrucao	# Carrega qual o numero da instrucao que vai ser pega
-    	la	$t1, buff_leitura	# Carrega buffer de leitura
+    	la	$t1, m_text		# Carrega buffer de leitura
     	# Operacao de pegar a instrucao desejada
     	add 	$t1, $t1, $t0		# Soma a posicao com o buffer para pegar apenas a instrucao desejada
     	lw      $t2, 0($t1)          	# Carrega a instrução lida no buffer temporário
@@ -409,16 +428,15 @@ erro_leitura:
 PC:         	.word 0
 IR:         	.word 0
 regs:       	.space 128
-memoria_text:   .space 1024
-memoria_data:   .space 1024
-memoria_pilha:  .space 1024
+m_text:   	.space 1024
+m_data:   	.space 1024
+m_pilha:  	.space 1024
 end_text:   	.word 0x00400000
 end_data:   	.word 0x10010000
 end_pilha:  	.word 0x7FFFEFFC
 ##################################
 
 ### VARIAVEIS PARA MANIPULACAO DE ARQUIVO ###
-buff_leitura:   .space 1024
 desc_arquivo:   .word 0
 instrucao:	.word 0
 
