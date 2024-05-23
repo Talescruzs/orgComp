@@ -164,6 +164,7 @@ tipo_r:
 	
 	lw	$t0, funct
 	beq  	$t0, 0x20, fadd
+	## ESCREVER OS OUTROS TIPOS DE FUNÇÃO R
 	
 	retorno_tipo_r:
 	j       ponto_retorno_decodificacao
