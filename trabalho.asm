@@ -14,28 +14,36 @@
 
 ### PROCESSOS INICIAIS ###
 ini:					# Processos de inicialização do programa
+	jal	zera_registradores
 	jal	ajusta_sp_simulado
 	jal	ajusta_pc_simulado
 	j 	main
-
+zera_registradores:
+	la	$t0, regs		#$t0 <- end inicial dos registradores simulados
+	li	$t1, 4			#$t1 <- 4(tamanho de um registrador)
+	loop_zera_regs:
+	sw	$zero, 0($t0)		# Zera o valor do registrador
+	add	$t0, $t0, $t1		# Passo para o registrador seguinte
+	ble  	$t0, 128 loop_zera_regs	# Volta o loop se não tiver chegado no final dos registradores
+	jr	$ra
 ajusta_sp_simulado:
 	la 	$t0, regs
-	la	$t1, 116($t0)		# $t1 <- endereço do registrador $sp simulado
+	addi	$t1, $t0, 116		# $t1 <- endereço do registrador $sp simulado
 	la 	$t0, m_pilha		# $t0 <- endereço inicial da pilha simulada
-	sw	$t1, 0($t0)		# $sp simulado <- endereço inicial da pilha
+	sw	$t0, 0($t1)		# $sp simulado <- endereço inicial da pilha
 	jr	$ra	
 ajusta_pc_simulado:
-	la 	$t0, instrucao
-	la 	$t1, m_text		# $t0 <- endereço inicial da pilha simulada
-	sw	$t0, 0($t1)		# $sp simulado <- endereço inicial da pilha
+	la 	$t1, PC
+	la 	$t2, m_text		# $t0 <- endereço inicial da pilha simulada
+	sw	$t2, 0($t1)		# PC simulado <- endereço inicial de código
 	jr	$ra
 ##########################
 main:
 	jal abre_arquivo
     	jal le_arquivo
 loop:
-    	jal pega_instrucao
-    	lw $s0, instrucao		# Verifica se acabaram as instrucoes
+	jal ajusta_ir
+    	lw $s0, IR			# Verifica se acabaram as instrucoes
     	beqz  $s0, loop_fim		# Sai do simulador se acabaram as instrucoes
     	
     	jal decodifica
@@ -71,21 +79,18 @@ le_arquivo:
     	# Verifica erro
     	bltz    $v0, erro_leitura    	# Se $v0 < 0, houve um erro
     	jr      $ra
+ajusta_ir:
+	lw	$t0, PC			# Carrega o endereco da instrucão atual
+	lw	$t1, 0($t0)		# Carrega a instrução atual em $t1
+	sw	$t1, IR			# Armazena a instrução em IR
+    	jr      $ra		
     	
-pega_instrucao:
-    	lw	$t0, n_instrucao	# Carrega qual o numero da instrucao que vai ser pega
-    	la	$t1, m_text		# Carrega buffer de leitura
-    	# Operacao de pegar a instrucao desejada
-    	add 	$t1, $t1, $t0		# Soma a posicao com o buffer para pegar apenas a instrucao desejada
-    	lw      $t2, 0($t1)          	# Carrega a instrução lida no buffer temporário
-    	la	$t1, instrucao		# Armazena o endereco da variavel de instrucao
-    	sw      $t2, 0($t1)       	# Armazena a instrução na variavel instrucao
-    	jr      $ra			
-
 passa_instrucao:
-	lw	$t0, n_instrucao	# Carrega qual o numero da instrucao que vai ser pega
+	lw	$t0, PC			# Carrega o endereco da instrucão atual
+	lw	$t1, 0($t0)		# Carrega a instrução atual em $t1
+	sw	$t1, IR			# Armazena a instrução em IR
 	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
-    	sw	$t0, n_instrucao	# Atualiza valor do numero da instrucao
+    	sw	$t0, PC			# Atualiza valor de PC
     	jr      $ra
     	
 fecha_arquivo:
@@ -144,7 +149,7 @@ tipo_r:
 	la      $a0, str_tipo_r
     	syscall                     	# Chamada do sistema
     	
-	lw	$a0, instrucao
+	lw	$a0, IR
 	jal 	pega_rs
 	sw 	$v0, r_s
 	jal 	pega_rt
@@ -173,7 +178,7 @@ tipo_i:
 	la      $a0, str_tipo_i
     	syscall                     	# Chamada do sistema
     	
-	lw	$a0, instrucao
+	lw	$a0, IR
 	jal 	pega_rs
 	sw 	$v0, r_s
 	jal 	pega_rt
@@ -198,7 +203,7 @@ tipo_j:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_j
     	syscall                     	# Chamada do sistema
-    	lw	$a0, instrucao
+    	lw	$a0, IR
 	jal 	pega_endereco
 	sw 	$v0, endereco
 	jal imprime_end
@@ -209,7 +214,7 @@ decodifica:
 	addi    $sp, $sp, -4
 	sw 	$ra, 0($sp)
 	
-	lw 	$a0, instrucao	
+	lw 	$a0, IR	
 	jal 	pega_op
 	sw 	$v0, op_code
 	
@@ -318,7 +323,7 @@ imprime_instrucao:
     	addi    $sp, $sp, -4
 	sw 	$ra, 0($sp)
 	la	$a0, msg_instrucao
-	la	$a1, instrucao
+	la	$a1, IR
     	jal 	imprime_geral_hex
     	lw	$ra, 0($sp)
 	addi    $sp, $sp, 4
@@ -439,8 +444,6 @@ end_pilha:  	.word 0x7FFFEFFC
 
 ### VARIAVEIS PARA MANIPULACAO DE ARQUIVO ###
 desc_arquivo:   .word 0
-instrucao:	.word 0
-
 op_code:	.word 0
 r_s:		.word 0
 r_t:		.word 0
@@ -450,7 +453,6 @@ funct:		.word 0
 endereco:	.word 0
 v_imediato:	.word 0
 
-n_instrucao:	.word 0
 nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
 #############################################
 
