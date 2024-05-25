@@ -193,6 +193,7 @@ tipo_i:
 	
 	lw	$t0, op_code
 	beq  	$t0, 0x9, faddiu
+	beq  	$t0, 0x2b, fsw
 	
 	retorno_tipo_i:
 	
@@ -274,7 +275,7 @@ fadd: #funcao que simula operacao add do processador MIPS
 	j	retorno_tipo_r
 ################
 #### TIPO I ####
-faddiu: #funcao que simula operacao add do processador MIPS
+faddiu: #funcao que simula operacao addiu do processador MIPS
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_addiu
     	syscall                     	# Chamada do sistema
@@ -293,15 +294,41 @@ faddiu: #funcao que simula operacao add do processador MIPS
     	mflo  	$t1			# $t1 <- registrador dois da soma simulado
     	add 	$t4, $t0, $t1		# $t4 <- endereco do registrador dois da soma simulado
     	
-    	
-    	
     	lw	$t5, v_imediato
     	lw	$t6, 0($t3)		# Valor do registrador um da soma simulado
     	lw	$t7, 0($t4)		# Valor do registrador dois da soma simulado
     	
     	add	$t6, $t7, $t5		# Soma dos valores dos registradores da soma
     	
-    	sw	$t6, 0($t3)		# Insere o valor da soma no registrador de destino simulado
+    	sw	$t6, 0($t4)		# Insere o valor da soma no registrador de destino simulado
+    	
+	j	retorno_tipo_i
+fsw: #funcao que simula operacao addiu do processador MIPS
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_sw
+    	syscall                     	# Chamada do sistema
+    	
+    	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+    	
+    	li	$s0, 4			# Insere tamanho do registrador em $s0
+    	
+    	lw	$t1, r_s
+    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posição
+    	mflo  	$t1			# $t1 <- registrador de inicio da soma simulado
+    	add 	$t3, $t0, $t1		# $t3 <- endereco do rs
+    	
+    	lw	$t1, r_t
+    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posição
+    	mflo  	$t1			# $t1 <- registrador de inicio da soma simulado
+    	add 	$t4, $t0, $t1		# $t4 <- endereco do rt
+    	
+    	lw	$t5, v_imediato		# $t5 <- valor imediato
+    	
+    	lw	$t6, 0($t3)		# $t6 <- valor armazenado no endereço armazenado no rs
+    	lw	$t7, 0($t4)		# $t7 <- valor armazenado no endereço armazenado no rt
+    	
+	add	$t6, $t6, $t5		# Modifica endereço com base no valor imediato
+    	sw	$t7, 0($t6)		# Insere valor no endereco solicitado
     	
 	j	retorno_tipo_i
 ################
@@ -475,6 +502,7 @@ str_tipo_j:	.asciiz "\ntipo j "
 str_add:	.asciiz "\nadd "
 
 str_addiu:	.asciiz "\naddiu "
+str_sw:		.asciiz "\nsw "
 
 #######
 # ERRO #
