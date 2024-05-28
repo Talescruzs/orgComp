@@ -71,13 +71,17 @@ abre_arquivo:
     	jr $ra
     	
 le_arquivo:
-    	li      $v0, 14              	# Código do sistema para ler arquivo
-    	lw      $a0, desc_arquivo    	# Carrega o descritor do arquivo
+	lw      $a0, desc_arquivo    	# Carrega o descritor do arquivo
     	la      $a1, m_text    		# Endereço do buffer de leitura
-    	li      $a2, 1024               # Número de bytes a serem lidos (tamanho da instrução)
-    	syscall                      	# Chamada do sistema
-    	# Verifica erro
-    	bltz    $v0, erro_leitura    	# Se $v0 < 0, houve um erro
+    	li      $a2, 16		        # Número de bytes a serem lidos (tamanho da instrução)
+    	loop_leitura:
+    		li      $v0, 14              	# Código do sistema para ler arquivo
+    		syscall                      	# Chamada do sistema
+    		add 	$a1, $a1, $a2
+     		bltz    $v0, erro_leitura    	# Se $v0 < 0, houve um erro
+     		blt  	$v0, $a2, sai_leitura
+     		j loop_leitura
+     	sai_leitura:
     	jr      $ra
 ajusta_ir:
 	lw	$t0, PC			# Carrega o endereco da instrucão atual
