@@ -11,7 +11,6 @@
 #      	M     	O			#
 .text        
 .globl main
-
 ### PROCESSOS INICIAIS ###
 ini:					# Processos de inicialização do programa
 	jal	zera_registradores
@@ -38,25 +37,30 @@ ajusta_pc_simulado:
 	sw	$t2, 0($t1)		# PC simulado <- endereço inicial de código
 	jr	$ra
 ##########################
+### MANUTENÇÃO DO SIMULADOR ###	
+passa_instrucao:
+	lw	$t0, PC			# Carrega o endereco da instrucão atual
+	lw	$t1, 0($t0)		# Carrega a instrução atual em $t1
+	sw	$t1, IR			# Armazena a instrução em IR
+	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
+    	sw	$t0, PC			# Atualiza valor de PC
+    	jr      $ra
+###############################
 main:
 	jal abre_arquivo
     	jal le_arquivo
 loop:
-	jal ajusta_ir
+	jal passa_instrucao
     	lw $s0, IR			# Verifica se acabaram as instrucoes
     	beqz  $s0, loop_fim		# Sai do simulador se acabaram as instrucoes
     	
     	jal decodifica
-    	
-    	jal passa_instrucao
+
     	j loop
 loop_fim:
     	jal fecha_arquivo
     	li      $v0, 10             	# Código do sistema para encerrar o programa
-    	syscall
-
-
-                   	
+    	syscall                   	
 #### INSTRUCOES DE INTERACAO COM ARQUIVO ####
 abre_arquivo:
 	# Abrir o arquivo para leitura
@@ -69,42 +73,25 @@ abre_arquivo:
     	# Salva descritor do arquivo na variável
     	sw      $v0, desc_arquivo   	# Armazena o descritor do arquivo em desc_arquivo
     	jr $ra
-    	
 le_arquivo:
 	lw      $a0, desc_arquivo    	# Carrega o descritor do arquivo
     	la      $a1, m_text    		# Endereço do buffer de leitura
     	li      $a2, 16		        # Número de bytes a serem lidos (tamanho da instrução)
-    	loop_leitura:
-    		li      $v0, 14              	# Código do sistema para ler arquivo
-    		syscall                      	# Chamada do sistema
-    		add 	$a1, $a1, $a2
-     		bltz    $v0, erro_leitura    	# Se $v0 < 0, houve um erro
-     		blt  	$v0, $a2, sai_leitura
-     		j loop_leitura
+	loop_leitura:
+    	li      $v0, 14              	# Código do sistema para ler arquivo
+    	syscall                      	# Chamada do sistema
+    	add 	$a1, $a1, $a2
+     	bltz    $v0, erro_leitura    	# Se $v0 < 0, houve um erro
+     	blt  	$v0, $a2, sai_leitura
+     	j loop_leitura
      	sai_leitura:
     	jr      $ra
-ajusta_ir:
-	lw	$t0, PC			# Carrega o endereco da instrucão atual
-	lw	$t1, 0($t0)		# Carrega a instrução atual em $t1
-	sw	$t1, IR			# Armazena a instrução em IR
-    	jr      $ra		
-    	
-passa_instrucao:
-	lw	$t0, PC			# Carrega o endereco da instrucão atual
-	lw	$t1, 0($t0)		# Carrega a instrução atual em $t1
-	sw	$t1, IR			# Armazena a instrução em IR
-	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
-    	sw	$t0, PC			# Atualiza valor de PC
-    	jr      $ra
-    	
 fecha_arquivo:
     	li      $v0, 16             	# Código do sistema para fechar arquivo
     	syscall                     	# Chamada do sistema
     	jr      $ra
 #############################################
-
 #### DECODIFICACAO DE INSTRUCAO ####
-
 ## PEGA PARTE DA INSTRUCAO ##
 pega_op: # $a0 = instrucao; $v0 <-- op_code
 	srl     $t0, $a0, 26
@@ -135,7 +122,6 @@ pega_funct: # $a0 = instrucao; $v0 <-- funct
 	srl     $t0, $t0, 26
 	move    $v0, $t0
 	jr      $ra
-	
 pega_endereco: # $a0 = instrucao; $v0 <-- endereco
 	sll     $t0, $a0, 5
 	srl     $t0, $t0, 5
