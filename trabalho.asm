@@ -142,10 +142,6 @@ pega_int: # $a0 = instrucao; $v0 <-- inteiro em complemento de 2
 #############################
 ## TIPOS DE OPERACAO ##
 tipo_r:
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_r
-    	syscall                     	# Chamada do sistema
-    	
 	lw	$a0, IR
 	jal 	pega_rs
 	sw 	$v0, r_s
@@ -158,23 +154,24 @@ tipo_r:
 	jal 	pega_funct
 	sw 	$v0, funct
 	
-	jal imprime_rs
-	jal imprime_rt
-	jal imprime_rd
-	jal imprime_shamt
-	jal imprime_funct
+	#jal imprime_rs
+	#jal imprime_rt
+	#jal imprime_rd
+	#jal imprime_shamt
+	#jal imprime_funct
 	
 	lw	$t0, funct
 	beq  	$t0, 0x20, fadd
 	## ESCREVER OS OUTROS TIPOS DE FUNÇÃO R
 	
+	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_r
+    	syscall                     	# Chamada do sistema
+	
 	retorno_tipo_r:
 	j       ponto_retorno_decodificacao
-tipo_i:
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_i
-    	syscall                     	# Chamada do sistema
-    	
+tipo_i:    	
 	lw	$a0, IR
 	jal 	pega_rs
 	sw 	$v0, r_s
@@ -184,31 +181,36 @@ tipo_i:
 	jal 	pega_int 		# Aceita numeros negativos (provavel que seja mudado)
 	sw 	$v0, v_imediato
 	
-	jal imprime_rs
-	jal imprime_rt
-	jal imprime_int
+	#jal imprime_rs
+	#jal imprime_rt
+	#jal imprime_int
 	
 	lw	$t0, op_code
 	beq  	$t0, 0x9, faddiu
 	beq  	$t0, 0x2b, fsw
+	beq  	$t0, 0x23, flw
+	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_i
+    	syscall                     	# Chamada do sistema
 	
 	retorno_tipo_i:
 	
 	j       ponto_retorno_decodificacao
 
 tipo_j:
-
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_j
-    	syscall                     	# Chamada do sistema
     	lw	$a0, IR
 	jal 	pega_endereco
 	sw 	$v0, endereco
-	jal imprime_end
+	#jal imprime_end
 	
 	lw	$t0, op_code
 	beq  	$t0, 0x3, fjal
 	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_j
+    	syscall                     	# Chamada do sistema
+    	
 	retorno_tipo_j:
 	
 	j       ponto_retorno_decodificacao
@@ -221,8 +223,8 @@ decodifica:
 	jal 	pega_op
 	sw 	$v0, op_code
 	
-	jal imprime_instrucao
-	jal imprime_op_code
+	#jal imprime_instrucao
+	#jal imprime_op_code
 	
 	lw	$t0, op_code
 	
@@ -303,9 +305,9 @@ faddiu: #funcao que simula operacao addiu do processador MIPS
     	add	$t6, $t7, $t5		# Soma dos valores dos registradores da soma
     	
     	sw	$t6, 0($t4)		# Insere o valor da soma no registrador de destino simulado
-    	
 	j	retorno_tipo_i
-fsw: #funcao que simula operacao addiu do processador MIPS
+	
+fsw:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_sw
     	syscall                     	# Chamada do sistema
@@ -331,14 +333,38 @@ fsw: #funcao que simula operacao addiu do processador MIPS
     	
 	add	$t6, $t6, $t5		# Modifica endereço com base no valor imediato
     	sw	$t7, 0($t6)		# Insere valor no endereco solicitado
-    	
 	j	retorno_tipo_i
+
+flw:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_lw
+    	syscall                     	# Chamada do sistema
+    	
+    	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+    	lw	$t1, r_s		# $t1 <- numero do registrador rs
+    	sll	$t1, $t1, 2		# $t1 <- numero do registrador * 4
+    	add	$t1, $t1, $t0		# $t1 <- endereço do registrador rs
+    	lw	$t2, r_t		# $t2 <- numero do registrador rt
+    	sll	$t2, $t2, 2		# $t2 <- numero do registrador * 4
+    	add	$t2, $t2, $t0		# $t2 <- endereço do registrador rt
+    	lw	$t3, v_imediato		# $t3 <- valor imediato
+    	
+    	lw	$t4, 0($t1)		# $t4 <- valor armazenado no endereço armazenado no rs
+    	lw	$t5, 0($t2)		# $t5 <- valor armazenado no endereço armazenado no rt
+    	
+    	add	$t4, $t4, $t3		# Modifica endereço com base no valor imediato
+    	sw	$t5, 0($t4)		# Insere valor no endereco solicitado
+	j	retorno_tipo_i
+    	
 ################
 #### TIPO J ####
 fjal:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_jal
     	syscall                     	# Chamada do sistema
+    	
+    	#lw	$t0, endereco
+    	#sw	$t0, PC
     	
     	j	retorno_tipo_j
     	
@@ -465,7 +491,6 @@ erro_leitura:
 	j termina
 #################################
 
-
 .data
 #memory:       .word 0xABCDE080
 
@@ -515,6 +540,7 @@ str_add:	.asciiz "\nadd "
 
 str_addiu:	.asciiz "\naddiu "
 str_sw:		.asciiz "\nsw "
+str_lw:		.asciiz "\nlw "
 
 str_jal:	.asciiz "\njal "
 
