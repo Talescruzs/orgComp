@@ -33,17 +33,22 @@ ajusta_sp_simulado:
 	jr	$ra	
 ajusta_pc_simulado:
 	la 	$t1, PC
-	la 	$t2, m_text		# $t0 <- endereço inicial da pilha simulada
+	li	$t2, 0x00400000
 	sw	$t2, 0($t1)		# PC simulado <- endereço inicial de código
 	jr	$ra
 ##########################
 ### MANUTENÇÃO DO SIMULADOR ###	
 passa_instrucao:
 	lw	$t0, PC			# Carrega o endereco da instrucão atual
+	lw	$t1, end_text		# Carrega o endereco inicial das intruções simuladas
+	sub 	$t0, $t0, $t1		# Insere em $t0 a diferença do PC para o endereço inicial de texto
+	la	$t1, m_text		# $t1 <- end inicial do .text simulado
+	add	$t0, $t0, $t1		# $t0 <- endereço real da instrução simulada
 	lw	$t1, 0($t0)		# Carrega a instrução atual em $t1
 	sw	$t1, IR			# Armazena a instrução em IR
+	lw	$t0, PC			# $t0 <- valor de PC simulado
 	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
-    	sw	$t0, PC			# Atualiza valor de PC
+	sw	$t0, PC			# Atualiza valor de PC
     	jr      $ra
 ###############################
 main:
@@ -59,14 +64,16 @@ loop:
     	j loop
 loop_fim:
     	jal fecha_arquivo
-    	li      $v0, 10             	# Código do sistema para encerrar o programa
+    	la	$a0, msg_sucesso
+    	j termina
     	syscall                   	
 #### INSTRUCOES DE INTERACAO COM ARQUIVO ####
 abre_arquivo:
 	# Abrir o arquivo para leitura
     	li      $v0, 13             	# Código do sistema para abrir arquivo
     	la      $a0, nome_arquivo   	# Endereço do nome do arquivo
-    	li      $a1, 0              	# Modo de abertura (0 para leitura)
+    	li      $a1, 0              	# Flag de abertura (0 para leitura)
+    	li      $a2, 0              	# Modo de abertura
     	syscall                     	# Chamada do sistema
     	# Verifica se houve erro ao abrir o arquivo
     	bltz    $v0, erro_abertura
@@ -199,6 +206,11 @@ tipo_j:
 	sw 	$v0, endereco
 	jal imprime_end
 	
+	lw	$t0, op_code
+	beq  	$t0, 0x3, fjal
+	
+	retorno_tipo_j:
+	
 	j       ponto_retorno_decodificacao
 #######################
 decodifica:
@@ -321,6 +333,16 @@ fsw: #funcao que simula operacao addiu do processador MIPS
     	sw	$t7, 0($t6)		# Insere valor no endereco solicitado
     	
 	j	retorno_tipo_i
+################
+#### TIPO J ####
+fjal:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_jal
+    	syscall                     	# Chamada do sistema
+    	
+    	j	retorno_tipo_j
+    	
+    	
 ################
 #### IMPRESSAO ####
 imprime_geral_hex: # a0 = menssagem de contexto; a1 = valor hexadecimal
@@ -494,7 +516,12 @@ str_add:	.asciiz "\nadd "
 str_addiu:	.asciiz "\naddiu "
 str_sw:		.asciiz "\nsw "
 
+str_jal:	.asciiz "\njal "
+
 #######
+# SUCESSO #
+msg_sucesso: .asciiz "\nPrograma finalizou com sucesso\n"
+###########
 # ERRO #
 msg_erro_abert: .asciiz "Erro ao abrir o arquivo\n"
 msg_erro_leitura: .asciiz "Erro ao ler instrucao\n"
