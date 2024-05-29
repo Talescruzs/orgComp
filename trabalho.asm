@@ -51,6 +51,31 @@ passa_instrucao:
 	sw	$t0, PC			# Atualiza valor de PC
     	jr      $ra
 ###############################
+### INTERNAS ###
+pega_registrador_simulado:
+#***************************************************		
+# parametros: $a0 <- numero do registrador; 
+# retorno: $v0 <- endereço do registrador solicitado
+#***************************************************
+	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+    	add	$t1, $a0, $zero		# $t1 <- numero do registrador desejado
+    	sll	$t1, $t1, 2		# $t1 <- posição no vetor dos registradores
+    	
+    	add	$v0, $t0, $t1		# $v0 <- posição real do registrador
+    	jr 	$ra
+pega_valor_registrador_simulado:
+#***************************************************		
+# parametros: $a0 <- numero do registrador; 
+# retorno: $v0 <- valor armazenado no registrador solicitado
+#***************************************************
+	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+    	add	$t1, $a0, $zero		# $t1 <- numero do registrador desejado
+    	sll	$t1, $t1, 2		# $t1 <- posição no vetor dos registradores
+
+    	add	$t0, $t0, $t1		# $t0 <- posição real do registrador
+    	lw	$v0, 0($t0)		# $v0 <- valor armazenado no registrador simulado
+    	jr 	$ra
+################
 main:
 	jal abre_arquivo
     	jal le_arquivo
@@ -158,10 +183,12 @@ tipo_r:
 	#jal imprime_rt
 	#jal imprime_rd
 	#jal imprime_shamt
-	#jal imprime_funct
+	jal imprime_funct
 	
 	lw	$t0, funct
+	beq  	$t0, 0xc, fsyscall
 	beq  	$t0, 0x20, fadd
+	beq  	$t0, 0x21, faddu
 	## ESCREVER OS OUTROS TIPOS DE FUNÇÃO R
 	
 	
@@ -240,7 +267,74 @@ decodifica:
 ####################################
 
 ###### FUNCOES DO SIMULADOR ######
+### SYSCALLS ###
+sys_imprime_int:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_sys_p_int
+    	syscall                     	# Chamada do sistema
+    	
+    	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
+    	jal	pega_registrador_simulado
+    	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
+    	li	$v0, 1			# $v0 <- 1 (serviço de imprimir int)
+    	syscall
+    	j retorno_syscall
+sys_imprime_str:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_sys_p_str
+    	syscall                     	# Chamada do sistema
+
+    	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
+    	jal	pega_registrador_simulado
+    	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
+    	li	$v0, 4			# $v0 <- 14 (serviço de imprimir str)
+    	syscall
+    	j retorno_syscall
+sys_imprime_char:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_sys_p_char
+    	syscall 
+    	
+    	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
+    	jal	pega_registrador_simulado
+    	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
+    	li	$v0, 11			# $v0 <- 11 (serviço de imprimir char)
+    	syscall
+    	j retorno_syscall
+sys_exit:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_sys_exit
+    	syscall                     	# Chamada do sistema
+    	
+    	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
+    	jal	pega_registrador_simulado
+    	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
+    	li	$v0, 17			# $v0 <- 17 (serviço de encerramento do programa)
+    	syscall
+    	
+################
 #### TIPO R ####
+fsyscall: 
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_syscall
+    	syscall                     	# Chamada do sistema
+    	
+    	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+    	li	$t1, 2			# $t1 <- registrador 2
+    	sll	$t1, $t1, 2		# $t1 <- posição no vetor dos registradores
+    	
+    	add	$t0, $t0, $t1		# $t0 <- posição real do registrador $v0 simulado
+    	lw	$t1, 0($t0)		# $t1 <- valor armazenado no registrador $v0 simulado
+    	
+    	
+    	beq  	$t1, 0x1, sys_imprime_int
+    	beq  	$t1, 0x4, sys_imprime_str
+    	beq  	$t1, 0xb, sys_imprime_char
+    	beq  	$t1, 0x11, sys_exit
+	
+	retorno_syscall:
+	j	retorno_tipo_r
+	
 fadd: #funcao que simula operacao add do processador MIPS
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_add
@@ -275,6 +369,30 @@ fadd: #funcao que simula operacao add do processador MIPS
     	add	$t5, $t6, $t7		# Soma dos valores dos registradores da soma
     	
     	sw	$t5, 0($t2)		# Insere o valor da soma no registrador de destino simulado
+    	
+	j	retorno_tipo_r
+faddu: 
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_addu
+    	syscall                     	# Chamada do sistema
+    	
+    	la	$t0, regs		# $t0 <- valor inicial dos endereços dos registradores simulados
+
+    	lw	$t1, r_s		# $t1 <- numero do registrador rs
+    	sll	$t1, $t1, 2		# $t1 <- numero do registrador * 4
+    	add	$t1, $t1, $t0		# $t1 <- endereço do registrador rs
+    	lw	$t2, r_t		# $t2 <- numero do registrador rt
+    	sll	$t2, $t2, 2		# $t2 <- numero do registrador * 4
+    	add	$t2, $t2, $t0		# $t2 <- endereço do registrador rt
+    	lw	$t3, r_d		# $t3 <- numero do registrador rd
+    	sll	$t3, $t3, 2		# $t3 <- numero do registrador * 4
+    	add	$t3, $t3, $t0		# $t3 <- endereço do registrador rd
+    	
+    	lw	$t4, 0($t1)		# $t4 <- valor armazenado no endereço armazenado no rs
+    	lw	$t5, 0($t2)		# $t5 <- valor armazenado no endereço armazenado no rt
+    	
+    	add	$t5, $t4, $t5		# Modifica endereço com base no valor imediato
+    	sw	$t5, 0($t3)		# Insere valor no endereco solicitado
     	
 	j	retorno_tipo_r
 ################
@@ -536,7 +654,15 @@ str_tipo_r:	.asciiz "\ntipo r "
 str_tipo_i:	.asciiz "\ntipo i "
 str_tipo_j:	.asciiz "\ntipo j "
 
+str_syscall:	.asciiz "\nsyscall "
+str_sys_p_int: 	.asciiz "\nimprime int "
+str_sys_p_str:	.asciiz "\nimprime str "
+str_sys_p_char:	.asciiz "\nimprime char  "
+str_sys_exit:	.asciiz "\nexit "
+
+
 str_add:	.asciiz "\nadd "
+str_addu:	.asciiz "\naddu "
 
 str_addiu:	.asciiz "\naddiu "
 str_sw:		.asciiz "\nsw "
