@@ -155,8 +155,8 @@ pega_funct: # $a0 = instrucao; $v0 <-- funct
 	move    $v0, $t0
 	jr      $ra
 pega_endereco: # $a0 = instrucao; $v0 <-- endereco
-	sll     $t0, $a0, 5
-	srl     $t0, $t0, 5
+	sll     $t0, $a0, 6
+	srl     $t0, $t0, 6
 	move    $v0, $t0
 	jr      $ra
 pega_int: # $a0 = instrucao; $v0 <-- inteiro em complemento de 2
@@ -330,7 +330,7 @@ fsyscall:
     	beq  	$t1, 0x1, sys_imprime_int
     	beq  	$t1, 0x4, sys_imprime_str
     	beq  	$t1, 0xb, sys_imprime_char
-    	beq  	$t1, 0x11, sys_exit
+    	#beq  	$t1, 0x11, sys_exit
 	
 	retorno_syscall:
 	j	retorno_tipo_r
@@ -481,8 +481,19 @@ fjal:
 	la      $a0, str_jal
     	syscall                     	# Chamada do sistema
     	
-    	#lw	$t0, endereco
-    	#sw	$t0, PC
+    	li	$a0, 31
+    	jal 	pega_registrador_simulado
+    	lw	$t0, PC			# $t0 <- endereço da instrução atual
+    	addi	$t0, $t0, 4		# $t0 <- endereço da proxima instrução
+    	sw	$t0, 0($v0)		# $ra simulado <- endereço de retorno
+    	
+    	lw	$t0, endereco		# $t0 <- endereço para pular
+    	la	$t1, PC			# $t1 <- endereço do PC simulado
+    	lw	$t2, end_text		# $t2 <- endereço inicial do .text simulado
+    	andi 	$t0, $t0, 0xffff	# $t0 <- numero da instrução para pular
+    	sll	$t0, $t0, 2		# $t0 <- endereço, relativo ao .text simulado para pular (cada instrução possui 4 bytes, por isso *4)
+    	add 	$t0, $t0, $t2		# $t0 <- endereço, efetivo da instrução desejada
+    	sw	$t0, 0($t1)		# PC simulado <- endereço da instrução solicitada
     	
     	j	retorno_tipo_j
     	
