@@ -167,18 +167,6 @@ pega_int: # $a0 = instrucao; $v0 <-- inteiro em complemento de 2
 #############################
 ## TIPOS DE OPERACAO ##
 tipo_r:
-	lw	$a0, IR
-	jal 	pega_rs
-	sw 	$v0, r_s
-	jal 	pega_rt
-	sw 	$v0, r_t
-	jal 	pega_rd
-	sw 	$v0, r_d
-	jal 	pega_shamt
-	sw 	$v0, shamt
-	jal 	pega_funct
-	sw 	$v0, funct
-	
 	#jal imprime_rs
 	#jal imprime_rt
 	#jal imprime_rd
@@ -200,20 +188,7 @@ tipo_r:
 	
 	retorno_tipo_r:
 	j       ponto_retorno_decodificacao
-tipo_i:    	
-	lw	$a0, IR
-	jal 	pega_rs
-	sw 	$v0, r_s
-	jal 	pega_rt
-	sw 	$v0, r_t
-	
-	jal 	pega_int 		# Aceita numeros negativos (provavel que seja mudado)
-	sw 	$v0, v_imediato
-	
-	#jal imprime_rs
-	#jal imprime_rt
-	#jal imprime_int
-	
+tipo_i:    		
 	lw	$t0, op_code
 	beq  	$t0, 0x5, fbne
 	beq  	$t0, 0x9, faddiu
@@ -231,9 +206,6 @@ tipo_i:
 	j       ponto_retorno_decodificacao
 
 tipo_j:
-    	lw	$a0, IR
-	jal 	pega_endereco
-	sw 	$v0, endereco
 	#jal imprime_end
 	
 	lw	$t0, op_code
@@ -256,6 +228,20 @@ decodifica:
 	lw 	$a0, IR	
 	jal 	pega_op
 	sw 	$v0, op_code
+	jal 	pega_rs
+	sw 	$v0, r_s
+	jal 	pega_rt
+	sw 	$v0, r_t
+	jal 	pega_rd
+	sw 	$v0, r_d
+	jal 	pega_shamt
+	sw 	$v0, shamt
+	jal 	pega_funct
+	sw 	$v0, funct
+	jal 	pega_int 		# Aceita numeros negativos (provavel que seja mudado)
+	sw 	$v0, v_imediato
+	jal 	pega_endereco
+	sw 	$v0, endereco
 	
 	#jal imprime_instrucao
 	#jal imprime_op_code
@@ -419,14 +405,13 @@ fbne: #funcao que simula operacao addiu do processador MIPS
     	
     	beq  	$t0, $t1, retorno_tipo_i# se $t0 e $t1 forem iguais, retorna e não faz nada
     	
-    	lw	$t3, endereco		# $t3 <- endereço para pular
-    	la	$t4, PC			# $t4 <- endereço do PC simulado
-    	lw	$t5, end_text		# $t5 <- endereço inicial do .text simulado
+    	lw	$t3, v_imediato		# $t3 <- v_imediato para pular
+    	lw	$t4, PC			# $t4 <- endereço do PC simulado
     	
     	sll	$t3, $t3, 2		# $t3 <- endereço, relativo ao .text simulado para pular (cada instrução possui 4 bytes, por isso *4)
-    	add 	$t3, $t3, $t5		# $t3 <- endereço, efetivo da instrução desejada
-    	
-    	sw	$t3, 0($t4)		# PC simulado <- endereço da instrução solicitada
+    	add 	$t4, $t3, $t4		# $t4 <- endereçoa para pular
+    	sw	$t4, PC			# Pula para a instrução desejada
+
 	j	retorno_tipo_i
 
 faddiu: #funcao que simula operacao addiu do processador MIPS
