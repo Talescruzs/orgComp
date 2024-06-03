@@ -165,62 +165,6 @@ pega_int: # $a0 = instrucao; $v0 <-- inteiro em complemento de 2
 	move    $v0, $t0
 	jr      $ra
 #############################
-## TIPOS DE OPERACAO ##
-tipo_r:
-	#jal imprime_rs
-	#jal imprime_rt
-	#jal imprime_rd
-	#jal imprime_shamt
-	#jal imprime_funct
-	
-	lw	$t0, funct
-	beq  	$t0, 0xc, fsyscall
-	beq  	$t0, 0x20, fadd
-	beq  	$t0, 0x21, faddu
-	## ESCREVER OS OUTROS TIPOS DE FUNÇÃO R
-	
-	
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_r
-    	syscall                     	# Chamada do sistema
-    	jal imprime_instrucao
-    	jal imprime_funct
-	
-	retorno_tipo_r:
-	j       ponto_retorno_decodificacao
-tipo_i:    		
-	lw	$t0, op_code
-	beq  	$t0, 0x5, fbne
-	beq  	$t0, 0x9, faddiu
-	beq  	$t0, 0x2b, fsw
-	beq  	$t0, 0x23, flw
-	
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_i
-    	syscall                     	# Chamada do sistema
-    	jal imprime_instrucao
-    	jal imprime_op_code
-	
-	retorno_tipo_i:
-	
-	j       ponto_retorno_decodificacao
-
-tipo_j:
-	#jal imprime_end
-	
-	lw	$t0, op_code
-	beq  	$t0, 0x3, fjal
-	
-	li      $v0, 4              	# Código do sistema para imprimir int
-	la      $a0, str_tipo_j
-    	syscall                     	# Chamada do sistema
-    	jal imprime_instrucao
-    	jal imprime_op_code
-    	
-	retorno_tipo_j:
-	
-	j       ponto_retorno_decodificacao
-#######################
 decodifica:
 	addi    $sp, $sp, -4
 	sw 	$ra, 0($sp)
@@ -258,7 +202,66 @@ decodifica:
 	jr      $ra
 
 ####################################
+## TIPOS DE OPERACAO ##
+tipo_r:
+	#jal imprime_rs
+	#jal imprime_rt
+	#jal imprime_rd
+	#jal imprime_shamt
+	#jal imprime_funct
+	
+	lw	$t0, funct
+	beq  	$t0, 0x8, fjr
+	beq  	$t0, 0xc, fsyscall
+	beq  	$t0, 0x20, fadd
+	beq  	$t0, 0x21, faddu
+	## ESCREVER OS OUTROS TIPOS DE FUNÇÃO R
+	
+	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_r
+    	syscall                     	# Chamada do sistema
+    	jal imprime_instrucao
+    	jal imprime_funct
+	
+	retorno_tipo_r:
+	j       ponto_retorno_decodificacao
+tipo_i:    		
+	lw	$t0, op_code
+	beq  	$t0, 0x5, fbne
+	beq  	$t0, 0x8, faddi
+	beq  	$t0, 0x9, faddiu
+	beq  	$t0, 0x2b, fsw
+	beq  	$t0, 0x23, flw
+	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_i
+    	syscall                     	# Chamada do sistema
+    	jal imprime_instrucao
+    	jal imprime_op_code
+	
+	retorno_tipo_i:
+	
+	j       ponto_retorno_decodificacao
 
+tipo_j:
+	#jal imprime_end
+	
+	lw	$t0, op_code
+	beq  	$t0, 0x2, fj
+	beq  	$t0, 0x3, fjal
+	
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_tipo_j
+    	syscall                     	# Chamada do sistema
+    	jal imprime_instrucao
+    	jal imprime_op_code
+    	
+	retorno_tipo_j:
+	
+	j       ponto_retorno_decodificacao
+	
+#######################
 ###### FUNCOES DO SIMULADOR ######
 ### SYSCALLS ###
 sys_imprime_int:
@@ -307,6 +310,24 @@ sys_exit:
     	
 ################
 #### TIPO R ####
+fjr: 
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_jr
+    	syscall                     	# Chamada do sistema
+    	
+    	lw	$a0, r_s
+    	jal 	pega_valor_registrador_simulado
+    	move	$t0, $v0		# $t0 <- valor do registrador rs simulado (endereço para ir)
+    	
+    	la	$t1, PC			# $t1 <- endereço do PC simulado
+    	lw	$t2, end_text		# $t2 <- endereço inicial do .text simulado
+    	andi 	$t0, $t0, 0xffff	# $t0 <- numero da instrução para pular
+    	sll	$t0, $t0, 2		# $t0 <- endereço, relativo ao .text simulado para pular (cada instrução possui 4 bytes, por isso *4)
+    	add 	$t0, $t0, $t2		# $t0 <- endereço, efetivo da instrução desejada
+    	sw	$t0, 0($t1)		# PC simulado <- endereço da instrução solicitada
+    	
+	j	retorno_tipo_r
+	
 fsyscall: 
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_syscall
@@ -390,20 +411,24 @@ faddu:
 	j	retorno_tipo_r
 ################
 #### TIPO I ####
-fbne: #funcao que simula operacao addiu do processador MIPS
+fbne:
+	addiu	$sp, $sp, -8
+	sw	$s0, 0($sp)
+	sw	$s1, 4($sp)
+	
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_bne
     	syscall                     	# Chamada do sistema
     	    
     	lw	$a0, r_s
     	jal 	pega_valor_registrador_simulado
-    	move	$t0, $v0		# $t0 <- valor do registrador rs simulado
+    	move	$s0, $v0		# $t0 <- valor do registrador rs simulado
     	
     	lw	$a0, r_t
     	jal 	pega_valor_registrador_simulado
-    	move	$t1, $v0		# $t1 <- valor do registrador rt simulado
+    	move	$s1, $v0		# $t1 <- valor do registrador rt simulado
     	
-    	beq  	$t0, $t1, retorno_tipo_i# se $t0 e $t1 forem iguais, retorna e não faz nada
+    	beq  	$s0, $s1, bne_epilogo	# se $t0 e $t1 forem iguais, retorna e não faz nada
     	
     	lw	$t3, v_imediato		# $t3 <- v_imediato para pular
     	lw	$t4, PC			# $t4 <- endereço do PC simulado
@@ -411,6 +436,29 @@ fbne: #funcao que simula operacao addiu do processador MIPS
     	sll	$t3, $t3, 2		# $t3 <- endereço, relativo ao .text simulado para pular (cada instrução possui 4 bytes, por isso *4)
     	add 	$t4, $t3, $t4		# $t4 <- endereçoa para pular
     	sw	$t4, PC			# Pula para a instrução desejada
+    	
+    	bne_epilogo:
+	lw	$s0, 0($sp)
+	lw	$s1, 4($sp)
+	addiu	$sp, $sp, 8
+	
+	j	retorno_tipo_i
+faddi:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_addi
+    	syscall                     	# Chamada do sistema
+    	    
+    	lw	$a0, r_s
+    	jal 	pega_registrador_simulado
+    	move	$t0, $v0		# $t0 <- endereço do registrador rs simulado
+    	
+    	lw	$a0, r_t
+    	jal 	pega_valor_registrador_simulado
+    	move	$t1, $v0		# $t1 <- valor do registrador rt simulado
+    	lw	$t3, v_imediato		# $t3 <- v_imediato para somar
+    	add 	$t1, $t1, $t3		# Soma valor do rt simulado com valor imediato
+    	sw	$t1, 0($t0)		# Armazena soma no registrador rs simulado
+    	
 
 	j	retorno_tipo_i
 
@@ -513,7 +561,20 @@ fjal:
     	sw	$t0, 0($t1)		# PC simulado <- endereço da instrução solicitada
     	
     	j	retorno_tipo_j
+fj:
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_j
+    	syscall                     	# Chamada do sistema
     	
+    	lw	$t0, endereco		# $t0 <- endereço para pular
+    	la	$t1, PC			# $t1 <- endereço do PC simulado
+    	lw	$t2, end_text		# $t2 <- endereço inicial do .text simulado
+    	andi 	$t0, $t0, 0xffff	# $t0 <- numero da instrução para pular
+    	sll	$t0, $t0, 2		# $t0 <- endereço, relativo ao .text simulado para pular (cada instrução possui 4 bytes, por isso *4)
+    	add 	$t0, $t0, $t2		# $t0 <- endereço, efetivo da instrução desejada
+    	sw	$t0, 0($t1)		# PC simulado <- endereço da instrução solicitada
+    	
+    	j	retorno_tipo_j
     	
 ################
 #### IMPRESSAO ####
@@ -688,15 +749,17 @@ str_sys_p_str:	.asciiz "\nimprime str "
 str_sys_p_char:	.asciiz "\nimprime char  "
 str_sys_exit:	.asciiz "\nexit "
 
-
+str_jr:		.asciiz "\njr "
 str_add:	.asciiz "\nadd "
 str_addu:	.asciiz "\naddu "
 
 str_bne:	.asciiz "\nbne "
+str_addi:	.asciiz "\naddi "
 str_addiu:	.asciiz "\naddiu "
 str_sw:		.asciiz "\nsw "
 str_lw:		.asciiz "\nlw "
 
+str_j:	.asciiz "\nj "
 str_jal:	.asciiz "\njal "
 
 #######
