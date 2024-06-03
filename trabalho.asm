@@ -155,8 +155,8 @@ pega_funct: # $a0 = instrucao; $v0 <-- funct
 	move    $v0, $t0
 	jr      $ra
 pega_endereco: # $a0 = instrucao; $v0 <-- endereco
-	sll     $t0, $a0, 6
-	srl     $t0, $t0, 6
+	sll     $t0, $a0, 16
+	srl     $t0, $t0, 16
 	move    $v0, $t0
 	jr      $ra
 pega_int: # $a0 = instrucao; $v0 <-- inteiro em complemento de 2
@@ -183,7 +183,7 @@ tipo_r:
 	#jal imprime_rt
 	#jal imprime_rd
 	#jal imprime_shamt
-	jal imprime_funct
+	#jal imprime_funct
 	
 	lw	$t0, funct
 	beq  	$t0, 0xc, fsyscall
@@ -195,6 +195,8 @@ tipo_r:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_r
     	syscall                     	# Chamada do sistema
+    	jal imprime_instrucao
+    	jal imprime_funct
 	
 	retorno_tipo_r:
 	j       ponto_retorno_decodificacao
@@ -213,6 +215,7 @@ tipo_i:
 	#jal imprime_int
 	
 	lw	$t0, op_code
+	beq  	$t0, 0x5, fbne
 	beq  	$t0, 0x9, faddiu
 	beq  	$t0, 0x2b, fsw
 	beq  	$t0, 0x23, flw
@@ -220,6 +223,8 @@ tipo_i:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_i
     	syscall                     	# Chamada do sistema
+    	jal imprime_instrucao
+    	jal imprime_op_code
 	
 	retorno_tipo_i:
 	
@@ -237,6 +242,8 @@ tipo_j:
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_tipo_j
     	syscall                     	# Chamada do sistema
+    	jal imprime_instrucao
+    	jal imprime_op_code
     	
 	retorno_tipo_j:
 	
@@ -330,7 +337,7 @@ fsyscall:
     	beq  	$t1, 0x1, sys_imprime_int
     	beq  	$t1, 0x4, sys_imprime_str
     	beq  	$t1, 0xb, sys_imprime_char
-    	#beq  	$t1, 0x11, sys_exit
+    	beq  	$t1, 0x11, sys_exit
 	
 	retorno_syscall:
 	j	retorno_tipo_r
@@ -397,6 +404,31 @@ faddu:
 	j	retorno_tipo_r
 ################
 #### TIPO I ####
+fbne: #funcao que simula operacao addiu do processador MIPS
+	li      $v0, 4              	# Código do sistema para imprimir int
+	la      $a0, str_bne
+    	syscall                     	# Chamada do sistema
+    	    
+    	lw	$a0, r_s
+    	jal 	pega_valor_registrador_simulado
+    	move	$t0, $v0		# $t0 <- valor do registrador rs simulado
+    	
+    	lw	$a0, r_t
+    	jal 	pega_valor_registrador_simulado
+    	move	$t1, $v0		# $t1 <- valor do registrador rt simulado
+    	
+    	beq  	$t0, $t1, retorno_tipo_i# se $t0 e $t1 forem iguais, retorna e não faz nada
+    	
+    	lw	$t3, endereco		# $t3 <- endereço para pular
+    	la	$t4, PC			# $t4 <- endereço do PC simulado
+    	lw	$t5, end_text		# $t5 <- endereço inicial do .text simulado
+    	
+    	sll	$t3, $t3, 2		# $t3 <- endereço, relativo ao .text simulado para pular (cada instrução possui 4 bytes, por isso *4)
+    	add 	$t3, $t3, $t5		# $t3 <- endereço, efetivo da instrução desejada
+    	
+    	sw	$t3, 0($t4)		# PC simulado <- endereço da instrução solicitada
+	j	retorno_tipo_i
+
 faddiu: #funcao que simula operacao addiu do processador MIPS
 	li      $v0, 4              	# Código do sistema para imprimir int
 	la      $a0, str_addiu
@@ -675,6 +707,7 @@ str_sys_exit:	.asciiz "\nexit "
 str_add:	.asciiz "\nadd "
 str_addu:	.asciiz "\naddu "
 
+str_bne:	.asciiz "\nbne "
 str_addiu:	.asciiz "\naddiu "
 str_sw:		.asciiz "\nsw "
 str_lw:		.asciiz "\nlw "
