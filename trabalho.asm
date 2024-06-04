@@ -50,17 +50,13 @@ passa_instrucao:
 	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
 	sw	$t0, PC			# Atualiza valor de PC
     	jr      $ra
-empilha: # Função que insere valores na pilha simulada	
-# funcionando
-	# a0 -> valor para empilhar, a1 -> v_imediato
+pega_endereco_pilha:
+	# $v0 -> retorno como endereço da pilha simulada
 	addi	$sp, $sp, -4		# Aloca empilhamento
-	sw	$a0, 0($sp)		# Empilha parametro $a0
+	sw	$ra, 0($sp)		# Empilha parametro $a0
 	
 	li	$a0, 29
 	jal	pega_valor_registrador_simulado# Pega endereço atual da pilha simulada
-	
-	lw	$a0, 0($sp)		# Desempilha parametro $a0
-	addi	$sp, $sp, 4		# Desaloca empilhamento
 	
 	move	$t0, $v0		# $t0 <- endereço atual da pilha simulada
 	lw	$t1, end_pilha		# $t1 <- endereço inicial da pilha simulada
@@ -68,32 +64,12 @@ empilha: # Função que insere valores na pilha simulada
 	la	$t2, m_pilha		# $t2 <- endereço final da pilha simulada
 	li 	$t3, 1024		# $t3 <- tamanho da pilha simulada
 	add	$t4, $t2, $t3		# $t4 <- endereço final da pilha
-	sub	$t4, $t4, $t0
-	add	$t4, $t4, $a1		# $t4 <- endereço somado com o valor imediato
-	sw	$a0, 0($t4)		# endereço solicitado na pilha recebe valor de $a0
-
-	j	retorno_tipo_i
-desempilha: # Função que retirar valores na pilha simulada	
-	# $a0 endereço do registrador para inserir valor retirado, $a1 <- v_imediato
-	addi	$sp, $sp, -4		# Aloca empilhamento
-	sw	$a0, 0($sp)		# Empilha parametro $a0
+	sub	$t4, $t4, $t0		# $t4 <- endereço real de $sp simulado
+	move	$v0, $t4		# $v0 <- endereço real de $sp simulado
 	
-	li	$a0, 29
-	jal	pega_valor_registrador_simulado# Pega endereço atual da pilha simulada
-	
-	lw	$a0, 0($sp)		# Desempilha parametro $a0
+	lw	$ra, 0($sp)		# Desempilha parametro $a0
 	addi	$sp, $sp, 4		# Desaloca empilhamento
-	move	$t0, $v0		# $t0 <- endereço atual da pilha simulada
-	lw	$t1, end_pilha		# $t1 <- endereço inicial da pilha simulada
-	sub 	$t0, $t1, $t0		# $t0 <- diferença entre inicio da pilha e posição inicial
-	la	$t2, m_pilha		# $t2 <- endereço final da pilha simulada
-	li 	$t3, 1024		# $t3 <- tamanho da pilha simulada
-	sll	$t3, $t3, 2		# $t3 <- tamanho em bytes da pilha simulada (* 4)
-	add	$t4, $t2, $t3		# $t4 <- endereço atual da pilha simulada dentro da memotia
-	add	$t4, $t4, $a1		# $t4 <- endereço somado com o valor imediato
-	lw	$t5, 0($t4)		# $v0 <- valor solicitado na pilha
-	sw	$t5, 0($a0)
-	j	retorno_tipo_i
+	jr	$ra
 ###############################
 ### INTERNAS ###
 pega_registrador_simulado:
@@ -537,6 +513,9 @@ fsw:
 	la      $a0, str_sw
     	syscall                     	# Chamada do sistema
     	
+    	addiu	$sp, $sp, -4
+    	sw	$ra, 0($sp)
+    	
     	lw	$a0, r_s
     	jal	pega_registrador_simulado
     	move	$t0, $v0
@@ -554,22 +533,36 @@ fsw:
     	lw	$t6, 0($t0)		# $t6 <- valor armazenado no endereÃ§o armazenado no rs
     	lw	$t7, 0($t1)		# $t7 <- valor armazenado no endereÃ§o armazenado no rt
     	
-    	li	$t3, 29
-    	lw	$t4, r_s
+    	lw	$t8, end_pilha
+    	bge   	$t6, $t8, sw_data
     	
-    	bne 	$t4, $t3, prologo_fsw
-    	move	$a0, $t7
-    	move	$a1, $t5
-    	j	empilha
-    	prologo_fsw:
+    	addiu	$sp, $sp, -12		# Aloca espaço na pilha
+    	sw	$t1, 0($sp)		# Empilha endereço do rt
+    	sw	$t5, 4($sp)		# Empilha valor imediato
+    	sw	$t7, 8($sp)		# Empilha valor armazenado no rt
+    	jal	pega_endereco_pilha
+    	move	$t6, $v0		# $t6 <- endereço apontado pelo sp simulado
+    	lw	$t1, 0($sp)		# Desempilha endereço do rt
+    	lw	$t5, 4($sp)		# Desempilha valor imediato
+    	lw	$t7, 8($sp)		# Desempilha valor armazenado no rt
+    	addiu	$sp, $sp, 12		# Desaloca espaço na pilha
+    	
+    	sw_data:
 	add	$t6, $t6, $t5		# Modifica endereÃ§o com base no valor imediato
     	sw	$t7, 0($t6)		# Insere valor no endereco solicitado
+    	
+    	lw	$ra, 0($sp)
+    	addiu	$sp, $sp, 4
 	j	retorno_tipo_i
+	
+    	
 
 flw:
 	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
 	la      $a0, str_lw
     	syscall                     	# Chamada do sistema
+    	addiu	$sp, $sp, -4
+    	sw	$ra, 0($sp)
     	
     	lw	$a0, r_s
     	jal	pega_registrador_simulado
@@ -588,16 +581,26 @@ flw:
     	lw	$t4, 0($t0)		# $t4 <- valor armazenado no endereÃ§o armazenado no rs
     	lw	$t5, 0($t1)		# $t5 <- valor armazenado no endereÃ§o armazenado no rt
     	
-    	li	$t3, 29
+    	lw	$t8, end_pilha
+    	bge   	$t6, $t8, lw_data
     	
-    	bne 	$t0, $t3, prologo_flw
-    	move	$a0, $t1
-    	move	$a1, $t2
-    	j	desempilha
-    	prologo_flw:
+    	addiu	$sp, $sp, -12		# Aloca espaço na pilha
+    	sw	$t1, 0($sp)		# Empilha endereço do rt
+    	sw	$t2, 4($sp)		# Empilha valor imediato
+    	sw	$t5, 8($sp)		# Empilha valor armazenado no rt
+    	jal	pega_endereco_pilha
+    	move	$t4, $v0		# $t6 <- endereço apontado pelo sp simulado
+    	lw	$t1, 0($sp)		# Desempilha endereço do rt
+    	lw	$t2, 4($sp)		# Desempilha valor imediato
+    	lw	$t5, 8($sp)		# Desempilha valor armazenado no rt
+    	addiu	$sp, $sp, 12		# Desaloca espaço na pilha
     	
-    	add	$t4, $t4, $t2		# Modifica endereÃ§o com base no valor imediato
+    	lw_data:
+	add	$t4, $t4, $t2		# Modifica endereÃ§o com base no valor imediato
     	sw	$t5, 0($t4)		# Insere valor no endereco solicitado
+    	
+    	lw	$ra, 0($sp)
+    	addiu	$sp, $sp, 4
 	j	retorno_tipo_i
     	
 ################
