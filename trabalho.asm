@@ -51,6 +51,7 @@ passa_instrucao:
 	sw	$t0, PC			# Atualiza valor de PC
     	jr      $ra
 empilha: # Função que insere valores na pilha simulada	
+# funcionando
 	# a0 -> valor para empilhar, a1 -> v_imediato
 	addi	$sp, $sp, -4		# Aloca empilhamento
 	sw	$a0, 0($sp)		# Empilha parametro $a0
@@ -66,8 +67,8 @@ empilha: # Função que insere valores na pilha simulada
 	sub  	$t0, $t1, $t0		# $t0 <- diferença entre inicio da pilha e posição inicial
 	la	$t2, m_pilha		# $t2 <- endereço final da pilha simulada
 	li 	$t3, 1024		# $t3 <- tamanho da pilha simulada
-	sll	$t3, $t3, 2		# $t3 <- tamanho em bytes da pilha simulada (* 4)
-	add	$t4, $t2, $t3		# $t4 <- endereço atual da pilha simulada dentro da memotia
+	add	$t4, $t2, $t3		# $t4 <- endereço final da pilha
+	sub	$t4, $t4, $t0
 	add	$t4, $t4, $a1		# $t4 <- endereço somado com o valor imediato
 	sw	$a0, 0($t4)		# endereço solicitado na pilha recebe valor de $a0
 
@@ -505,32 +506,30 @@ faddi:
 
 	j	retorno_tipo_i
 
-faddiu: #funcao que simula operacao addiu do processador MIPS
+faddiu: # funcionando top
 	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
 	la      $a0, str_addiu
     	syscall                     	# Chamada do sistema
     	
-    	la	$t0, regs		# $t0 <- valor inicial dos endereÃ§os dos registradores simulados
+    	lw	$a0, r_s
+    	jal	pega_registrador_simulado
+    	move	$t0, $v0
+    	addi	$sp, $sp, -4
+    	sw	$t0, 0($sp)
     	
-    	li	$s0, 4			# Insere tamanho do registrador em $s0
+    	lw	$a0, r_t
+    	jal	pega_registrador_simulado
+    	move	$t1, $v0
+    	lw	$t0, 0($sp)
+    	addi	$sp, $sp, 4
     	
-    	lw	$t1, r_s
-    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posiÃ§Ã£o
-    	mflo  	$t1			# $t1 <- registrador de inicio da soma simulado
-    	add 	$t3, $t0, $t1		# $t3 <- endereco do registrador inicio da soma simulado
+    	lw	$t2, v_imediato
+    	lw	$t3, 0($t0)		# Valor do registrador um da soma simulado
+    	lw	$t4, 0($t1)		# Valor do registrador dois da soma simulado
     	
-    	lw	$t1, r_t
-    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posiÃ§Ã£o
-    	mflo  	$t1			# $t1 <- registrador dois da soma simulado
-    	add 	$t4, $t0, $t1		# $t4 <- endereco do registrador dois da soma simulado
+    	add	$t3, $t4, $t2		# Soma dos valores dos registradores da soma
     	
-    	lw	$t5, v_imediato
-    	lw	$t6, 0($t3)		# Valor do registrador um da soma simulado
-    	lw	$t7, 0($t4)		# Valor do registrador dois da soma simulado
-    	
-    	add	$t6, $t7, $t5		# Soma dos valores dos registradores da soma
-    	
-    	sw	$t6, 0($t4)		# Insere o valor da soma no registrador de destino simulado
+    	sw	$t3, 0($t1)		# Insere o valor da soma no registrador de destino simulado
 	j	retorno_tipo_i
 	
 fsw:
