@@ -71,6 +71,32 @@ pega_endereco_pilha:
 	lw	$ra, 0($sp)		# Desempilha parametro $a0
 	addi	$sp, $sp, 4		# Desaloca empilhamento
 	jr	$ra
+	
+pega_endereco_data:
+# $a0 recebe endereço solicitado do segmento de dados; 
+# $v0 -> retorno como endereço da pilha simulada
+	addi	$sp, $sp, -4		# Aloca empilhamento
+	sw	$ra, 0($sp)		# Empilha parametro $a0
+	
+	move	$t0, $a0
+	lw	$t1, end_data		# $t1 <- endereço inicial de dados simulado
+	######################################
+	# Verifica se endereço está dentro dos 
+	# endereços possíveis dos dados simulados
+	######################################
+	sub  	$t2, $t0, $t1		
+	move	$t3, $t2
+	bltz  	$t2, erro_fora_data
+	subi 	$t2, $t2, 1024
+	bgtz   	$t2, erro_fora_data
+	
+	la	$t2, m_data		# $t2 <- endereço inicial de dados
+	add	$t3, $t2, $t3		# $t4 <- endereço solicitado
+	move	$v0, $t3		# $v0 <- endereço real de $sp simulado
+	
+	lw	$ra, 0($sp)		# Desempilha parametro $a0
+	addi	$sp, $sp, 4		# Desaloca empilhamento
+	jr	$ra
 ###############################
 ### INTERNAS ###
 pega_registrador_simulado:
@@ -98,8 +124,8 @@ pega_valor_registrador_simulado:
     	jr 	$ra
 ################
 main:
-	jal abre_arquivo
-    	jal le_arquivo
+	jal recebe_data
+    	jal recebe_text
 loop:
 	jal passa_instrucao
     	
@@ -112,21 +138,16 @@ loop_fim:
     	j termina
     	syscall                   	
 #### INSTRUCOES DE INTERACAO COM ARQUIVO ####
-abre_arquivo:
+abre_arquivo:	# recebe em $a0 o endereço do nome do arquivo
 	# Abrir o arquivo para leitura
     	li      $v0, 13             	# CÃ³digo do sistema para abrir arquivo
-    	la      $a0, nome_arquivo   	# EndereÃ§o do nome do arquivo
     	li      $a1, 0              	# Flag de abertura (0 para leitura)
     	li      $a2, 0              	# Modo de abertura
     	syscall                     	# Chamada do sistema
     	# Verifica se houve erro ao abrir o arquivo
     	bltz    $v0, erro_abertura
-    	# Salva descritor do arquivo na variÃ¡vel
-    	sw      $v0, desc_arquivo   	# Armazena o descritor do arquivo em desc_arquivo
     	jr $ra
-le_arquivo:
-	lw      $a0, desc_arquivo    	# Carrega o descritor do arquivo
-    	la      $a1, m_text    		# EndereÃ§o do buffer de leitura
+le_arquivo: # recebe em $a0 o descritor do arquivo; recebe em $a1 o endereço inicial para onde transferir os dados lidos
     	li      $a2, 16		        # NÃºmero de bytes a serem lidos (tamanho da instruÃ§Ã£o)
 	loop_leitura:
     	li      $v0, 14              	# CÃ³digo do sistema para ler arquivo
@@ -137,6 +158,33 @@ le_arquivo:
      	j loop_leitura
      	sai_leitura:
     	jr      $ra
+recebe_text:
+	# Abrir o arquivo para leitura
+	addiu	$sp, $sp, -4
+	sw	$ra, 0($sp)
+	
+    	la      $a0, arquivo_text   	# EndereÃ§o do nome do arquivo
+    	jal 	abre_arquivo
+    	move	$a0, $v0
+    	la      $a1, m_text    		# EndereÃ§o do buffer de leitura
+    	jal 	le_arquivo
+    	
+	lw	$ra, 0($sp)
+	addiu	$sp, $sp, 4
+    	jr $ra
+recebe_data:
+	addiu	$sp, $sp, -4
+	sw	$ra, 0($sp)
+	
+    	la      $a0, arquivo_data   	# EndereÃ§o do nome do arquivo
+    	jal 	abre_arquivo
+    	move	$a0, $v0
+    	la      $a1, m_data    		# EndereÃ§o do buffer de leitura
+    	jal 	le_arquivo
+    	
+	lw	$ra, 0($sp)
+	addiu	$sp, $sp, 4
+    	jr $ra
 fecha_arquivo:
     	li      $v0, 16             	# CÃ³digo do sistema para fechar arquivo
     	syscall                     	# Chamada do sistema
@@ -287,10 +335,6 @@ tipo_j:
 ###### FUNCOES DO SIMULADOR ######
 ### SYSCALLS ###
 sys_imprime_int:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_sys_p_int
-    	syscall                     	# Chamada do sistema
-    	
     	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
     	jal	pega_registrador_simulado
     	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
@@ -298,21 +342,15 @@ sys_imprime_int:
     	syscall
     	j retorno_syscall
 sys_imprime_str:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_sys_p_str
-    	syscall                     	# Chamada do sistema
-
     	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
     	jal	pega_registrador_simulado
     	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
+    	jal pega_endereco_data
+    	move	$a0, $v0
     	li	$v0, 4			# $v0 <- 14 (serviÃ§o de imprimir str)
     	syscall
     	j retorno_syscall
 sys_imprime_char:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_sys_p_char
-    	syscall 
-    	
     	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
     	jal	pega_registrador_simulado
     	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
@@ -320,10 +358,6 @@ sys_imprime_char:
     	syscall
     	j retorno_syscall
 sys_exit:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_sys_exit
-    	syscall                     	# Chamada do sistema
-    	
     	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
     	jal	pega_registrador_simulado
     	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
@@ -333,10 +367,6 @@ sys_exit:
 ################
 #### TIPO R ####
 fjr: 
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_jr
-    	syscall                     	# Chamada do sistema
-    	
     	lw	$a0, r_s
     	jal 	pega_valor_registrador_simulado
     	move	$t0, $v0		# $t0 <- valor do registrador rs simulado (endereÃ§o para ir)
@@ -347,31 +377,19 @@ fjr:
 	j	retorno_tipo_r
 	
 fsyscall: 
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_syscall
-    	syscall                     	# Chamada do sistema
+    	li	$a0, 2
+    	jal pega_valor_registrador_simulado
+    	move	$t0, $v0
     	
-    	la	$t0, regs		# $t0 <- valor inicial dos endereÃ§os dos registradores simulados
-    	li	$t1, 2			# $t1 <- registrador 2
-    	sll	$t1, $t1, 2		# $t1 <- posiÃ§Ã£o no vetor dos registradores
-    	
-    	add	$t0, $t0, $t1		# $t0 <- posiÃ§Ã£o real do registrador $v0 simulado
-    	lw	$t1, 0($t0)		# $t1 <- valor armazenado no registrador $v0 simulado
-    	
-    	
-    	beq  	$t1, 0x1, sys_imprime_int
-    	beq  	$t1, 0x4, sys_imprime_str
-    	beq  	$t1, 0xb, sys_imprime_char
-    	beq  	$t1, 0x11, sys_exit
+    	beq  	$t0, 0x1, sys_imprime_int
+    	beq  	$t0, 0x4, sys_imprime_str
+    	beq  	$t0, 0xb, sys_imprime_char
+    	beq  	$t0, 0x11, sys_exit
 	
 	retorno_syscall:
 	j	retorno_tipo_r
 	
-fadd: #funcao que simula operacao add do processador MIPS
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_add
-    	syscall                     	# Chamada do sistema
-    	
+fadd: 
     	la	$t0, regs		# $t0 <- valor inicial dos endereÃ§os dos registradores simulados
     	
     	lw	$t1, r_d		# $t1 <- numero do registrador de destino simulado
@@ -404,10 +422,6 @@ fadd: #funcao que simula operacao add do processador MIPS
     	
 	j	retorno_tipo_r
 faddu: 
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_addu
-    	syscall                     	# Chamada do sistema
-    	
     	la	$t0, regs		# $t0 <- valor inicial dos endereÃ§os dos registradores simulados
 
     	lw	$t1, r_s		# $t1 <- numero do registrador rs
@@ -430,10 +444,6 @@ faddu:
 ################
 #### TIPO I ####
 fbne:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_bne
-    	syscall                     	# Chamada do sistema
-    	    
     	lw	$a0, r_s
     	jal	pega_valor_registrador_simulado
     	move	$t0, $v0
@@ -457,11 +467,7 @@ fbne:
     	
     	bne_epilogo:
 	j	retorno_tipo_i
-faddi:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_addi
-    	syscall                     	# Chamada do sistema
-    	    
+faddi:	    
     	lw	$a0, r_t
     	jal	pega_registrador_simulado
     	move	$t0, $v0
@@ -481,11 +487,7 @@ faddi:
 
 	j	retorno_tipo_i
 
-faddiu: # funcionando top
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_addiu
-    	syscall                     	# Chamada do sistema
-    	
+faddiu:
     	lw	$a0, r_s
     	jal	pega_registrador_simulado
     	move	$t0, $v0
@@ -502,30 +504,42 @@ faddiu: # funcionando top
     	lw	$t3, 0($t0)		# Valor do registrador um da soma simulado
     	lw	$t4, 0($t1)		# Valor do registrador dois da soma simulado
     	
-    	add	$t3, $t4, $t2		# Soma dos valores dos registradores da soma
+    	add	$t3, $t3, $t2		# Soma dos valores dos registradores da soma
     	
     	sw	$t3, 0($t1)		# Insere o valor da soma no registrador de destino simulado
 	j	retorno_tipo_i
 
 flui:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_lui
-    	syscall                     	# Chamada do sistema
- 
+ 	lw	$a0, r_t
+ 	jal	pega_registrador_simulado
+ 	move	$t0, $v0
+ 	
+ 	lw	$t1, v_imediato
+ 	sll	$t1, $t1, 16
+ 	sw	$t1, 0($t0)
+ 	
 	j	retorno_tipo_i
 
 fori:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_ori
-    	syscall                     	# Chamada do sistema
+    	lw	$a0, r_s
+    	jal	pega_valor_registrador_simulado
+    	move	$t0, $v0
+    	addi	$sp, $sp, -4
+    	sw	$t0, 0($sp)
+    	
+    	lw	$a0, r_t
+    	jal	pega_registrador_simulado
+    	move	$t1, $v0
+    	lw	$t0, 0($sp)
+    	addi	$sp, $sp, 4
+    	
+    	lw	$t2, v_imediato
+    	or 	$t3, $t0, $t2
+    	sw	$t3, 0($t1)
  
 	j	retorno_tipo_i
 
 fmul:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_mul
-    	syscall                     	# Chamada do sistema
-    	
     	lw	$a0, r_d
     	jal	pega_registrador_simulado
     	move	$t0, $v0
@@ -552,10 +566,6 @@ fmul:
 	j	retorno_tipo_i
 	
 fsw:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_sw
-    	syscall                     	# Chamada do sistema
-    	
     	addiu	$sp, $sp, -4
     	sw	$ra, 0($sp)
     	
@@ -601,9 +611,6 @@ fsw:
     	
 
 flw:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_lw
-    	syscall                     	# Chamada do sistema
     	addiu	$sp, $sp, -4
     	sw	$ra, 0($sp)
     	
@@ -650,10 +657,6 @@ flw:
 ################
 #### TIPO J ####
 fjal:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_jal
-    	syscall                     	# Chamada do sistema
-    	
     	li	$a0, 31
     	jal 	pega_registrador_simulado
     	lw	$t0, PC			# $t0 <- endereÃ§o da instruÃ§Ã£o atual
@@ -668,11 +671,7 @@ fjal:
     	sw	$t0, 0($t1)		# PC simulado <- endereÃ§o da instruÃ§Ã£o solicitada
     	
     	j	retorno_tipo_j
-fj:
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_j
-    	syscall                     	# Chamada do sistema
-    	
+fj: 	
     	lw	$t0, endereco		# $t0 <- endereÃ§o para pular
     	la	$t1, PC			# $t1 <- endereÃ§o do PC simulado
     	lw	$t2, end_text		# $t2 <- endereÃ§o inicial do .text simulado
@@ -806,6 +805,9 @@ erro_leitura:
 erro_fora_pilha:
 	la	$a0, msg_erro_fora_pilha# EndereÃ§o da mensagem de erro
 	j termina
+erro_fora_data:
+	la	$a0, msg_erro_fora_data# EndereÃ§o da mensagem de erro
+	j termina
 #################################
 
 .data
@@ -834,7 +836,8 @@ funct:		.word 0
 endereco:	.word 0
 v_imediato:	.word 0
 
-nome_arquivo:   .asciiz "trabalho_01-2024_1.bin"
+arquivo_text:   .asciiz "trabalho_01-2024_1.bin"
+arquivo_data:   .asciiz "trabalh0_01-2024_1.dat"
 #############################################
 
 ############## STRINGS ##############
@@ -883,5 +886,6 @@ msg_sucesso: .asciiz "\nPrograma finalizou com sucesso\n"
 msg_erro_abert: .asciiz "Erro ao abrir o arquivo\n"
 msg_erro_leitura: .asciiz "Erro ao ler instrucao\n"
 msg_erro_fora_pilha: .asciiz "\nSolicitou endereço fora da pilha\n"
+msg_erro_fora_data: .asciiz "\nSolicitou endereço fora do segmento de dados\n"
 ########
 #####################################
