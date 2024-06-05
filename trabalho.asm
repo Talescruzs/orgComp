@@ -56,14 +56,15 @@ pega_endereco_pilha:
 	sw	$ra, 0($sp)		# Empilha parametro $a0
 	
 	li	$a0, 29
-	jal	pega_valor_registrador_simulado# Pega endereço atual da pilha simulada
-	
+	jal	pega_valor_registrador_simulado# Pega endereço atual da pilha simulada	
 	move	$t0, $v0		# $t0 <- endereço atual da pilha simulada
 	lw	$t1, end_pilha		# $t1 <- endereço inicial da pilha simulada
 	sub  	$t0, $t1, $t0		# $t0 <- diferença entre inicio da pilha e posição inicial
+	blez 	$t0, erro_fora_pilha
+	
 	la	$t2, m_pilha		# $t2 <- endereço final da pilha simulada
 	li 	$t3, 1024		# $t3 <- tamanho da pilha simulada
-	add	$t4, $t2, $t3		# $t4 <- endereço final da pilha
+	add	$t4, $t2, $t3		# $t4 <- endereço final da pilha	
 	sub	$t4, $t4, $t0		# $t4 <- endereço real de $sp simulado
 	move	$v0, $t4		# $v0 <- endereço real de $sp simulado
 	
@@ -101,8 +102,6 @@ main:
     	jal le_arquivo
 loop:
 	jal passa_instrucao
-    	lw $s0, IR			# Verifica se acabaram as instrucoes
-    	beqz  $s0, loop_fim		# Sai do simulador se acabaram as instrucoes
     	
     	jal decodifica
 
@@ -251,6 +250,9 @@ tipo_i:
 	beq  	$t0, 0x5, fbne
 	beq  	$t0, 0x8, faddi
 	beq  	$t0, 0x9, faddiu
+	beq  	$t0, 0xd, fori
+	beq  	$t0, 0xf, flui
+	beq  	$t0, 0x1c, fmul
 	beq  	$t0, 0x2b, fsw
 	beq  	$t0, 0x23, flw
 	
@@ -340,10 +342,6 @@ fjr:
     	move	$t0, $v0		# $t0 <- valor do registrador rs simulado (endereÃ§o para ir)
     	
     	la	$t1, PC			# $t1 <- endereÃ§o do PC simulado
-    	lw	$t2, end_text		# $t2 <- endereÃ§o inicial do .text simulado
-    	andi 	$t0, $t0, 0xffff	# $t0 <- numero da instruÃ§Ã£o para pular
-    	sll	$t0, $t0, 2		# $t0 <- endereÃ§o, relativo ao .text simulado para pular (cada instruÃ§Ã£o possui 4 bytes, por isso *4)
-    	add 	$t0, $t0, $t2		# $t0 <- endereÃ§o, efetivo da instruÃ§Ã£o desejada
     	sw	$t0, 0($t1)		# PC simulado <- endereÃ§o da instruÃ§Ã£o solicitada
     	
 	j	retorno_tipo_r
@@ -432,23 +430,23 @@ faddu:
 ################
 #### TIPO I ####
 fbne:
-	addiu	$sp, $sp, -8
-	sw	$s0, 0($sp)
-	sw	$s1, 4($sp)
-	
 	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
 	la      $a0, str_bne
     	syscall                     	# Chamada do sistema
     	    
     	lw	$a0, r_s
-    	jal 	pega_valor_registrador_simulado
-    	move	$s0, $v0		# $t0 <- valor do registrador rs simulado
+    	jal	pega_valor_registrador_simulado
+    	move	$t0, $v0
+    	addi	$sp, $sp, -4
+    	sw	$t0, 0($sp)
     	
     	lw	$a0, r_t
-    	jal 	pega_valor_registrador_simulado
-    	move	$s1, $v0		# $t1 <- valor do registrador rt simulado
+    	jal	pega_valor_registrador_simulado
+    	move	$t1, $v0
+    	lw	$t0, 0($sp)
+    	addi	$sp, $sp, 4
     	
-    	beq  	$s0, $s1, bne_epilogo	# se $t0 e $t1 forem iguais, retorna e nÃ£o faz nada
+    	beq  	$t0, $t1, bne_epilogo	# se $t0 e $t1 forem iguais, retorna e nÃ£o faz nada
     	
     	lw	$t3, v_imediato		# $t3 <- v_imediato para pular
     	lw	$t4, PC			# $t4 <- endereÃ§o do PC simulado
@@ -458,23 +456,24 @@ fbne:
     	sw	$t4, PC			# Pula para a instruÃ§Ã£o desejada
     	
     	bne_epilogo:
-	lw	$s0, 0($sp)
-	lw	$s1, 4($sp)
-	addiu	$sp, $sp, 8
-	
 	j	retorno_tipo_i
 faddi:
 	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
 	la      $a0, str_addi
     	syscall                     	# Chamada do sistema
     	    
-    	lw	$a0, r_s
-    	jal 	pega_registrador_simulado
-    	move	$t0, $v0		# $t0 <- endereÃ§o do registrador rs simulado
-    	
     	lw	$a0, r_t
-    	jal 	pega_valor_registrador_simulado
-    	move	$t1, $v0		# $t1 <- valor do registrador rt simulado
+    	jal	pega_registrador_simulado
+    	move	$t0, $v0
+    	addi	$sp, $sp, -4
+    	sw	$t0, 0($sp)
+    	
+    	lw	$a0, r_s
+    	jal	pega_valor_registrador_simulado
+    	move	$t1, $v0
+    	lw	$t0, 0($sp)
+    	addi	$sp, $sp, 4
+    	
     	lw	$t3, v_imediato		# $t3 <- v_imediato para somar
     	add 	$t1, $t1, $t3		# Soma valor do rt simulado com valor imediato
     	sw	$t1, 0($t0)		# Armazena soma no registrador rs simulado
@@ -506,6 +505,50 @@ faddiu: # funcionando top
     	add	$t3, $t4, $t2		# Soma dos valores dos registradores da soma
     	
     	sw	$t3, 0($t1)		# Insere o valor da soma no registrador de destino simulado
+	j	retorno_tipo_i
+
+flui:
+	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
+	la      $a0, str_lui
+    	syscall                     	# Chamada do sistema
+ 
+	j	retorno_tipo_i
+
+fori:
+	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
+	la      $a0, str_ori
+    	syscall                     	# Chamada do sistema
+ 
+	j	retorno_tipo_i
+
+fmul:
+	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
+	la      $a0, str_mul
+    	syscall                     	# Chamada do sistema
+    	
+    	lw	$a0, r_d
+    	jal	pega_registrador_simulado
+    	move	$t0, $v0
+    	addi	$sp, $sp, -4
+    	sw	$t0, 0($sp)
+    	    
+    	lw	$a0, r_s
+    	jal	pega_valor_registrador_simulado
+    	move	$t1, $v0
+    	addi	$sp, $sp, -4
+    	sw	$t1, 0($sp)
+    	
+    	lw	$a0, r_t
+    	jal	pega_valor_registrador_simulado
+    	move	$t2, $v0
+    	lw	$t1, 0($sp)
+    	lw	$t0, 4($sp)
+    	addi	$sp, $sp, 8
+    	
+    	mul	$t1, $t1, $t2
+    	
+    	sw	$t1, 0($t0)
+
 	j	retorno_tipo_i
 	
 fsw:
@@ -597,7 +640,8 @@ flw:
     	
     	lw_data:
 	add	$t4, $t4, $t2		# Modifica endereÃ§o com base no valor imediato
-    	sw	$t5, 0($t4)		# Insere valor no endereco solicitado
+    	lw	$t5, 0($t4)		# Insere valor no endereco solicitado
+    	sw	$t5, 0($t1)
     	
     	lw	$ra, 0($sp)
     	addiu	$sp, $sp, 4
@@ -613,7 +657,6 @@ fjal:
     	li	$a0, 31
     	jal 	pega_registrador_simulado
     	lw	$t0, PC			# $t0 <- endereÃ§o da instruÃ§Ã£o atual
-    	addi	$t0, $t0, 4		# $t0 <- endereÃ§o da proxima instruÃ§Ã£o
     	sw	$t0, 0($v0)		# $ra simulado <- endereÃ§o de retorno
     	
     	lw	$t0, endereco		# $t0 <- endereÃ§o para pular
@@ -760,6 +803,9 @@ erro_abertura:
 erro_leitura:
 	la	$a0, msg_erro_leitura 	# EndereÃ§o da mensagem de erro
 	j termina
+erro_fora_pilha:
+	la	$a0, msg_erro_fora_pilha# EndereÃ§o da mensagem de erro
+	j termina
 #################################
 
 .data
@@ -820,6 +866,9 @@ str_addu:	.asciiz "\naddu "
 str_bne:	.asciiz "\nbne "
 str_addi:	.asciiz "\naddi "
 str_addiu:	.asciiz "\naddiu "
+str_lui:	.asciiz "\nlui "
+str_ori:	.asciiz "\nori "
+str_mul:	.asciiz "\nmul "
 str_sw:		.asciiz "\nsw "
 str_lw:		.asciiz "\nlw "
 
@@ -833,5 +882,6 @@ msg_sucesso: .asciiz "\nPrograma finalizou com sucesso\n"
 # ERRO #
 msg_erro_abert: .asciiz "Erro ao abrir o arquivo\n"
 msg_erro_leitura: .asciiz "Erro ao ler instrucao\n"
+msg_erro_fora_pilha: .asciiz "\nSolicitou endereço fora da pilha\n"
 ########
 #####################################
