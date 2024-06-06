@@ -1,7 +1,8 @@
 # Simulador de processador MIPS
 Neste repositório será explicado o [fluxo de funcionamento](#fluxo-de-funcionamento), [funcionalidades simuladas](#funções-assembly-mips-simuladas) e [limitações](#limitações) do código. <br>
 Bem como as [instruções](#instruções) para realização do trabalho de organização de computadores ELC1011 do primeiro semestre de 2024 no curso de Sistemas de Informação da UFSM. <br>
-O código do arquivo mips.asm recebe o arquivo trabalho_01-2024_1.bin (contendo os comandos do programa) e trabalho_01-2024_1.dat (contendo os dados usados no programa)
+O código do arquivo mips.asm recebe o arquivo trabalho_01-2024_1.bin (contendo os comandos do programa) e trabalho_01-2024_1.dat (contendo os dados usados no programa)<br>
+Para rodar o programa utilize o comando "java -jar Mars.jar" no terminal dentro da pasta Files e então abra e rode o código mips.asm pelo MARS 
 ### IDE utilizada
 Para realizar a simulação foi utilizado o simulador MIPS chamado [MARS](http://courses.missouristate.edu/KenVollmar/MARS/)
 
