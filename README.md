@@ -1,7 +1,10 @@
 # Simulador de processador MIPS
-Neste repositório será explicado o funcionamento e caracteristicas do código em assembly MIPS que simula um processador MIPS. <br>
+Neste repositório será explicado o fluxo de [funcionamento](), [limitações]() e [funcionalidades simuladas](#funções-assembly-mips-simuladas) do código. <br>
 Bem como as [instruções](#instruções) para realização do trabalho de organização de computadores ELC1011 do primeiro semestre de 2024 no curso de Sistemas de Informação da UFSM. <br>
 O código do arquivo mips.asm recebe o arquivo trabalho_01-2024_1.bin (contendo os comandos do programa) e trabalho_01-2024_1.dat (contendo os dados usados no programa)
+### IDE utilizada
+Para realizar a simulação foi utilizado o simulador MIPS chamado [MARS](http://courses.missouristate.edu/KenVollmar/MARS/)
+
 ## Instruções
 No primeiro trabalho do curso será desenvolvido um programa para simular um subconjunto de instruções do
 processador MIPS. O simulador do processador será escrito em linguagem assembly para o processador MIPS.
@@ -33,9 +36,6 @@ os alunos no desenvolvimento do simulador e realizará atividades em sala de aul
 do trabalho. Um documento de ajuda será mantido com as perguntas e respostas frequentes (FAQ) e será
 atualizado ao longo da execução do trabalho. Utilize o documento de ajuda como referência para dúvidas
 frequentes. Em caso de dúvidas não contempladas no FAQ, entre em contato com o professor.
-
-### IDE utilizada
-Para realizar a simulação foi utilizado o simulador MIPS chamado MARS
 ## Funções Assembly MIPS simuladas
 ### Tipo r
 * jr
