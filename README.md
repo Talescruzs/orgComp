@@ -1,5 +1,5 @@
 # Simulador de processador MIPS
-Neste repositório será explicado o fluxo de [funcionamento](), [limitações]() e [funcionalidades simuladas](#funções-assembly-mips-simuladas) do código. <br>
+Neste repositório será explicado o [fluxo de funcionamento](#fluxo-de-funcionamento), [funcionalidades simuladas](#funções-assembly-mips-simuladas) e [limitações](#limitações) do código. <br>
 Bem como as [instruções](#instruções) para realização do trabalho de organização de computadores ELC1011 do primeiro semestre de 2024 no curso de Sistemas de Informação da UFSM. <br>
 O código do arquivo mips.asm recebe o arquivo trabalho_01-2024_1.bin (contendo os comandos do programa) e trabalho_01-2024_1.dat (contendo os dados usados no programa)
 ### IDE utilizada
@@ -36,6 +36,8 @@ os alunos no desenvolvimento do simulador e realizará atividades em sala de aul
 do trabalho. Um documento de ajuda será mantido com as perguntas e respostas frequentes (FAQ) e será
 atualizado ao longo da execução do trabalho. Utilize o documento de ajuda como referência para dúvidas
 frequentes. Em caso de dúvidas não contempladas no FAQ, entre em contato com o professor.
+## Fluxo de Funcionamento
+TODO
 ## Funções Assembly MIPS simuladas
 ### Tipo r
 * jr
@@ -58,3 +60,5 @@ frequentes. Em caso de dúvidas não contempladas no FAQ, entre em contato com o
 * $v0 = 4 (imprimir str)
 * $v0 = 11 (imprimir char)
 * $v0 = 17 (exit)
+## Limitações
+TODO
