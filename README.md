@@ -1,6 +1,6 @@
 # Simulador de processador MIPS
 Neste repositório será explicado o funcionamento e caracteristicas do código em assembly MIPS que simula um processador MIPS. <br>
-Bem como as [instruções](##Instruções) para realização do trabalho de organização de computadores ELC1011 do primeiro semestre de 2024 no curso de Sistemas de Informação da UFSM. <br>
+Bem como as [instruções](#instruções) para realização do trabalho de organização de computadores ELC1011 do primeiro semestre de 2024 no curso de Sistemas de Informação da UFSM. <br>
 O código do arquivo mips.asm recebe o arquivo trabalho_01-2024_1.bin (contendo os comandos do programa) e trabalho_01-2024_1.dat (contendo os dados usados no programa)
 ## Instruções
 No primeiro trabalho do curso será desenvolvido um programa para simular um subconjunto de instruções do
