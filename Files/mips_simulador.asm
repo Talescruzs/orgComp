@@ -33,11 +33,11 @@ ajusta_sp_simulado:
 	jr	$ra	
 ajusta_pc_simulado:
 	la 	$t1, PC
-	li	$t2, 0x00400000
+	lw	$t2, end_text
 	sw	$t2, 0($t1)		# PC simulado <- endereÃ§o inicial de cÃ³digo
 	jr	$ra
 ##########################
-### MANUTENÃ‡ÃƒO DO SIMULADOR ###	
+### INTERNAS DO SIMULADOR ###	
 passa_instrucao:
 	lw	$t0, PC			# Carrega o endereco da instrucÃ£o atual
 	lw	$t1, end_text		# Carrega o endereco inicial das intruÃ§Ãµes simuladas
@@ -97,8 +97,6 @@ pega_endereco_data:
 	lw	$ra, 0($sp)		# Desempilha parametro $a0
 	addi	$sp, $sp, 4		# Desaloca empilhamento
 	jr	$ra
-###############################
-### INTERNAS ###
 pega_registrador_simulado:
 #***************************************************		
 # parametros: $a0 <- numero do registrador; 
@@ -122,6 +120,47 @@ pega_valor_registrador_simulado:
     	add	$t0, $t0, $t1		# $t0 <- posiÃ§Ã£o real do registrador
     	lw	$v0, 0($t0)		# $v0 <- valor armazenado no registrador simulado
     	jr 	$ra
+pega_rd_rs_rt:
+#***************************************************		
+# parametros: 
+# $a0 <- endereço incial para salvar os dados de retorno
+# obs: tamanho do retorno = 12 bytes
+#***************************************************
+pega_rs_rt:
+#***************************************************		
+# PARAMETROS: 
+# $a0 <- endereço incial para salvar os dados de retorno
+# obs: tamanho do retorno = 8 bytes
+# MAPAS: 
+# 	1-PILHA:
+#		0 = $ra
+#		4 = $a0
+#		8 = $t0
+# 	2-REGISTRADORES:
+#		$t0 = endereço do rt simulado
+#		$t1 = endereço do rs simulado
+#***************************************************
+	addi	$sp, $sp, -12		# Aloca espaço da pilha
+	sw	$ra, 0($sp)		# Empilha endereço de retorno do procedimento
+	sw	$a0, 4($sp)		# Empilha parametro $a0
+	
+	lw	$a0, r_t
+    	jal	pega_registrador_simulado
+    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rt solicitado
+    	sw	$t0, 8($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
+    	
+    	lw	$a0, r_s
+    	jal	pega_valor_registrador_simulado
+    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rs solicitado
+    	lw	$t0, 8($sp)		# Recupera $t0
+    	lw	$a0, 4($sp)		# Recupera $a0
+
+    	sw	$t1, 0($a0)		# Escreve endereço do rs na posição solicitada
+    	sw	$t0, 4($a0)		# Escreve endereço do rt na posição solicitada
+    	
+    	lw	$ra, 0($sp)		# Recupera endereço de retorno do procedimento
+    	addi	$sp, $sp, 12		# Desaloca espaço da pilha
+    	jr	$ra			# Retorna
 ################
 main:
 	jal recebe_data
@@ -283,14 +322,6 @@ tipo_r:
 	beq  	$t0, 0x20, fadd
 	beq  	$t0, 0x21, faddu
 	## ESCREVER OS OUTROS TIPOS DE FUNÃ‡ÃƒO R
-	
-	
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_tipo_r
-    	syscall                     	# Chamada do sistema
-    	jal imprime_instrucao
-    	jal imprime_funct
-	
 	retorno_tipo_r:
 	j       ponto_retorno_decodificacao
 tipo_i:    		
@@ -303,13 +334,6 @@ tipo_i:
 	beq  	$t0, 0x1c, fmul
 	beq  	$t0, 0x2b, fsw
 	beq  	$t0, 0x23, flw
-	
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_tipo_i
-    	syscall                     	# Chamada do sistema
-    	jal imprime_instrucao
-    	jal imprime_op_code
-	
 	retorno_tipo_i:
 	
 	j       ponto_retorno_decodificacao
@@ -320,13 +344,6 @@ tipo_j:
 	lw	$t0, op_code
 	beq  	$t0, 0x2, fj
 	beq  	$t0, 0x3, fjal
-	
-	li      $v0, 4              	# CÃ³digo do sistema para imprimir int
-	la      $a0, str_tipo_j
-    	syscall                     	# Chamada do sistema
-    	jal imprime_instrucao
-    	jal imprime_op_code
-    	
 	retorno_tipo_j:
 	
 	j       ponto_retorno_decodificacao
@@ -468,104 +485,87 @@ fbne:
     	bne_epilogo:
 	j	retorno_tipo_i
 faddi:	    
-    	lw	$a0, r_t
-    	jal	pega_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
-    	
-    	lw	$a0, r_s
-    	jal	pega_valor_registrador_simulado
-    	move	$t1, $v0
+    	addi	$sp, $sp, -8
+    	move	$a0, $sp
+    	jal 	pega_rs_rt
     	lw	$t0, 0($sp)
-    	addi	$sp, $sp, 4
-    	
+    	lw	$t1, 4($sp)
+    	addi	$sp, $sp, 8
     	lw	$t3, v_imediato		# $t3 <- v_imediato para somar
-    	add 	$t1, $t1, $t3		# Soma valor do rt simulado com valor imediato
-    	sw	$t1, 0($t0)		# Armazena soma no registrador rs simulado
-    	
-
+    	add 	$t0, $t0, $t3		# Soma valor do rt simulado com valor imediato
+    	sw	$t0, 0($t1)		# Armazena soma no registrador rs simulado
 	j	retorno_tipo_i
 
 faddiu:
     	lw	$a0, r_s
     	jal	pega_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
+    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rs solicitado
+    	addi	$sp, $sp, -4		# Aloca espaço que será utilizado na pilha
+    	sw	$t0, 0($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
     	
     	lw	$a0, r_t
     	jal	pega_registrador_simulado
-    	move	$t1, $v0
-    	lw	$t0, 0($sp)
-    	addi	$sp, $sp, 4
+    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rt solicitado
+    	lw	$t0, 0($sp)		# Recupera $t0
+    	addi	$sp, $sp, 4		# Desaloca espaço na pilha
     	
-    	lw	$t2, v_imediato
-    	lw	$t3, 0($t0)		# Valor do registrador um da soma simulado
-    	lw	$t4, 0($t1)		# Valor do registrador dois da soma simulado
-    	
-    	add	$t3, $t3, $t2		# Soma dos valores dos registradores da soma
-    	
-    	sw	$t3, 0($t1)		# Insere o valor da soma no registrador de destino simulado
-	j	retorno_tipo_i
+    	lw	$t2, v_imediato		# $t2 <- valor imediato inserido
+    	lw	$t3, 0($t0)		# $t3 <- valor do registrador rs simulado
+    	lw	$t4, 0($t1)		# $t4 <- valor do registrador rt simulado
 
+    	addu	$t3, $t3, $t2		# Realiza addiu
+    	sw	$t3, 0($t1)		# Insere resultado no registrador rt simulado
+	j	retorno_tipo_i
 flui:
  	lw	$a0, r_t
  	jal	pega_registrador_simulado
- 	move	$t0, $v0
+ 	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rt solicitado
  	
- 	lw	$t1, v_imediato
- 	sll	$t1, $t1, 16
- 	sw	$t1, 0($t0)
- 	
+ 	lw	$t1, v_imediato		# $t1 <- valor imediato inserido
+ 	sll	$t1, $t1, 16		# Move os bits do valor simulado para a metade mais significativa
+ 	sw	$t1, 0($t0)		# Insere resultado no registrador rt simulado
 	j	retorno_tipo_i
 
 fori:
     	lw	$a0, r_s
     	jal	pega_valor_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
+    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rs solicitado
+    	addi	$sp, $sp, -4		# Aloca espaço que será utilizado na pilha
+    	sw	$t0, 0($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
     	
     	lw	$a0, r_t
     	jal	pega_registrador_simulado
-    	move	$t1, $v0
-    	lw	$t0, 0($sp)
-    	addi	$sp, $sp, 4
+    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rt solicitado
+    	lw	$t0, 0($sp)		# Recupera $t0
+    	addi	$sp, $sp, 4		# Desaloca espaço na pilha
     	
-    	lw	$t2, v_imediato
-    	or 	$t3, $t0, $t2
-    	sw	$t3, 0($t1)
- 
+    	lw	$t2, v_imediato		# $t2 <- valor imediato inserido
+    	or 	$t3, $t0, $t2		# Realiza o OR
+    	sw	$t3, 0($t1)		# Insere resultado no registrador rt simulado
 	j	retorno_tipo_i
-
 fmul:
+	addi	$sp, $sp, -8		# Aloca espaço que será utilizado na pilha
     	lw	$a0, r_d
     	jal	pega_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
-    	    
+    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rd solicitado
+    	sw	$t0, 0($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
+    	
     	lw	$a0, r_s
     	jal	pega_valor_registrador_simulado
-    	move	$t1, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t1, 0($sp)
+    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rs solicitado
+    	sw	$t1, 4($sp)		# Empilha $t1 para guardar valor e poder ir para outros procedimentos
     	
     	lw	$a0, r_t
     	jal	pega_valor_registrador_simulado
-    	move	$t2, $v0
-    	lw	$t1, 0($sp)
-    	lw	$t0, 4($sp)
-    	addi	$sp, $sp, 8
-    	
-    	mul	$t1, $t1, $t2
-    	
-    	sw	$t1, 0($t0)
+    	move	$t2, $v0		# $t2 <- endereço na memória do simulador do registrador rt solicitado
+    	lw	$t0, 0($sp)		# Recupera $t1
+    	lw	$t1, 4($sp)		# Recupera $t0
+    	addi	$sp, $sp, 8		# Desaloca espaço na pilha
 
+    	mul	$t1, $t1, $t2		# Realiza a multiplicação
+    	sw	$t1, 0($t0)		# Insere o valor da multiplicação no registrador rd simulado
 	j	retorno_tipo_i
-	
-fsw:
+fsw:	# Precisa melhorar
     	addiu	$sp, $sp, -4
     	sw	$ra, 0($sp)
     	
@@ -607,10 +607,7 @@ fsw:
     	lw	$ra, 0($sp)
     	addiu	$sp, $sp, 4
 	j	retorno_tipo_i
-	
-    	
-
-flw:
+flw: # Precisa melhorar
     	addiu	$sp, $sp, -4
     	sw	$ra, 0($sp)
     	
@@ -653,7 +650,6 @@ flw:
     	lw	$ra, 0($sp)
     	addiu	$sp, $sp, 4
 	j	retorno_tipo_i
-    	
 ################
 #### TIPO J ####
 fjal:
@@ -661,140 +657,24 @@ fjal:
     	jal 	pega_registrador_simulado
     	lw	$t0, PC			# $t0 <- endereÃ§o da instruÃ§Ã£o atual
     	sw	$t0, 0($v0)		# $ra simulado <- endereÃ§o de retorno
-    	
-    	lw	$t0, endereco		# $t0 <- endereÃ§o para pular
-    	la	$t1, PC			# $t1 <- endereÃ§o do PC simulado
-    	lw	$t2, end_text		# $t2 <- endereÃ§o inicial do .text simulado
-    	andi 	$t0, $t0, 0xffff	# $t0 <- numero da instruÃ§Ã£o para pular
-    	sll	$t0, $t0, 2		# $t0 <- endereÃ§o, relativo ao .text simulado para pular (cada instruÃ§Ã£o possui 4 bytes, por isso *4)
-    	add 	$t0, $t0, $t2		# $t0 <- endereÃ§o, efetivo da instruÃ§Ã£o desejada
-    	sw	$t0, 0($t1)		# PC simulado <- endereÃ§o da instruÃ§Ã£o solicitada
-    	
+    	j 	fj			
     	j	retorno_tipo_j
 fj: 	
     	lw	$t0, endereco		# $t0 <- endereÃ§o para pular
     	la	$t1, PC			# $t1 <- endereÃ§o do PC simulado
     	lw	$t2, end_text		# $t2 <- endereÃ§o inicial do .text simulado
-    	andi 	$t0, $t0, 0xffff	# $t0 <- numero da instruÃ§Ã£o para pular
     	sll	$t0, $t0, 2		# $t0 <- endereÃ§o, relativo ao .text simulado para pular (cada instruÃ§Ã£o possui 4 bytes, por isso *4)
     	add 	$t0, $t0, $t2		# $t0 <- endereÃ§o, efetivo da instruÃ§Ã£o desejada
     	sw	$t0, 0($t1)		# PC simulado <- endereÃ§o da instruÃ§Ã£o solicitada
-    	
     	j	retorno_tipo_j
-    	
 ################
-#### IMPRESSAO ####
-imprime_geral_hex: # a0 = menssagem de contexto; a1 = valor hexadecimal
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	syscall                     	# Chamada do sistema
-
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, 0($a1)          	# EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	
-    	jr      $ra
-    	
-imprime_instrucao:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	addi    $sp, $sp, -4
-	sw 	$ra, 0($sp)
-	la	$a0, msg_instrucao
-	la	$a1, IR
-    	jal 	imprime_geral_hex
-    	lw	$ra, 0($sp)
-	addi    $sp, $sp, 4
-    	jr      $ra	
-imprime_op_code:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_op_code  	# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, op_code          # EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra	
-imprime_rs:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_rs  		# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, r_s          # EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra	
-imprime_rt:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_rt  		# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, r_t          # EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra	
-imprime_rd:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_rd  		# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, r_d          # EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra	
-imprime_shamt:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_shamt  	# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, shamt          	# EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra
-imprime_funct:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_funct  	# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, funct          	# EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra
-imprime_end:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_end  	# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, endereco          	# EndereÃ§o do buffer de leitura
-    	li      $v0, 34             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra
-imprime_int:
-    	# Exibe a instruÃ§Ã£o binÃ¡ria lida
-    	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
-    	la      $a0, msg_imediato  	# EndereÃ§o da mensagem "InstruÃ§Ã£o binÃ¡ria lida: "
-    	syscall                     	# Chamada do sistema
-    	# Exibe os bytes da instruÃ§Ã£o binÃ¡ria
-	lw	$a0, v_imediato         # EndereÃ§o do buffer de leitura
-    	li      $v0, 1             	# CÃ³digo do sistema para imprimir bytes em hexadecimal
-    	syscall                     	# Chamada do sistema
-    	jr      $ra
-###################
 ##################################
 ###### TRATAMENTO DE ERROS ######
 termina:
 	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
     	syscall                     	# Chamada do sistema
     	li      $v0, 10             	# CÃ³digo do sistema para encerrar o programa
-    	syscall 
-    	
+    	syscall
 erro_abertura:
     	la      $a0, msg_erro_abert 	# EndereÃ§o da mensagem de erro
     	j termina
@@ -824,9 +704,7 @@ end_text:   	.word 0x00400000
 end_data:   	.word 0x10010000
 end_pilha:  	.word 0x7FFFEFFC
 ##################################
-
 ### VARIAVEIS PARA MANIPULACAO DE ARQUIVO ###
-desc_arquivo:   .word 0
 op_code:	.word 0
 r_s:		.word 0
 r_t:		.word 0
@@ -839,45 +717,7 @@ v_imediato:	.word 0
 arquivo_text:   .asciiz "trabalho_01-2024_1.bin"
 arquivo_data:   .asciiz "trabalh0_01-2024_1.dat"
 #############################################
-
 ############## STRINGS ##############
-# I/O #
-msg_instrucao: 	.asciiz "\nInstruÃ§Ã£o binÃ¡ria lida: "
-msg_op_code: 	.asciiz "\nOp_code lida: "
-msg_rs: 	.asciiz "\nrs lido: "
-msg_rt: 	.asciiz "\nrt lido: "
-msg_rd: 	.asciiz "\nrd lido: "
-msg_shamt: 	.asciiz "\nshamt lido: "
-msg_funct: 	.asciiz "\nfunct lido: "
-msg_end: 	.asciiz "\nendereco lido: "
-msg_imediato: 	.asciiz "\nvalor imediato lido: "
-
-str_tipo_r:	.asciiz "\ntipo r "
-str_tipo_i:	.asciiz "\ntipo i "
-str_tipo_j:	.asciiz "\ntipo j "
-
-str_syscall:	.asciiz "\nsyscall "
-str_sys_p_int: 	.asciiz "\nimprime int "
-str_sys_p_str:	.asciiz "\nimprime str "
-str_sys_p_char:	.asciiz "\nimprime char  "
-str_sys_exit:	.asciiz "\nexit "
-
-str_jr:		.asciiz "\njr "
-str_add:	.asciiz "\nadd "
-str_addu:	.asciiz "\naddu "
-
-str_bne:	.asciiz "\nbne "
-str_addi:	.asciiz "\naddi "
-str_addiu:	.asciiz "\naddiu "
-str_lui:	.asciiz "\nlui "
-str_ori:	.asciiz "\nori "
-str_mul:	.asciiz "\nmul "
-str_sw:		.asciiz "\nsw "
-str_lw:		.asciiz "\nlw "
-
-str_j:	.asciiz "\nj "
-str_jal:	.asciiz "\njal "
-
 #######
 # SUCESSO #
 msg_sucesso: .asciiz "\nPrograma finalizou com sucesso\n"
