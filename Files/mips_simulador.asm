@@ -122,9 +122,25 @@ pega_valor_registrador_simulado:
     	jr 	$ra
 pega_rd_rs_rt:
 #***************************************************		
-# parametros: 
+# PARAMETROS: 
 # $a0 <- endereço incial para salvar os dados de retorno
-# obs: tamanho do retorno = 12 bytes
+# obs: tamanho do retorno = 24 bytes
+# MAPAS: 
+# 	1-PILHA:
+#		0 = $ra
+#		4 = $a0
+#		8 = $t0
+# 	2-REGISTRADORES:
+#		$t0 = endereço do rd simulado
+#		$t1 = endereço do rs simulado
+#		$t2 = endereço do rt simulado
+# 	3-RETORNO:
+#		0($a0) = end_rs
+#		4($a0) = end_rt
+#		8($a0) = end_rt
+#		12($a0) = v_rs
+#		16($a0) = v_rt
+#		20($a0) = v_rt
 #***************************************************
 pega_rs_rt:
 #***************************************************		
@@ -137,8 +153,8 @@ pega_rs_rt:
 #		4 = $a0
 #		8 = $t0
 # 	2-REGISTRADORES:
-#		$t0 = endereço do rt simulado
-#		$t1 = endereço do rs simulado
+#		$t0 = endereço do rs simulado
+#		$t1 = endereço do rt simulado
 # 	3-RETORNO:
 #		0($a0) = end_rs
 #		4($a0) = end_rt
