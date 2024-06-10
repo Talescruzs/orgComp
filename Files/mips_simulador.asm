@@ -130,7 +130,7 @@ pega_rs_rt:
 #***************************************************		
 # PARAMETROS: 
 # $a0 <- endereço incial para salvar os dados de retorno
-# obs: tamanho do retorno = 8 bytes
+# obs: tamanho do retorno = 16 bytes
 # MAPAS: 
 # 	1-PILHA:
 #		0 = $ra
@@ -139,24 +139,34 @@ pega_rs_rt:
 # 	2-REGISTRADORES:
 #		$t0 = endereço do rt simulado
 #		$t1 = endereço do rs simulado
+# 	3-RETORNO:
+#		0($a0) = end_rs
+#		4($a0) = end_rt
+#		8($a0) = v_rs
+#		12($a0) = v_rt
 #***************************************************
 	addi	$sp, $sp, -12		# Aloca espaço da pilha
 	sw	$ra, 0($sp)		# Empilha endereço de retorno do procedimento
 	sw	$a0, 4($sp)		# Empilha parametro $a0
 	
-	lw	$a0, r_t
+	lw	$a0, r_s
     	jal	pega_registrador_simulado
     	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rt solicitado
     	sw	$t0, 8($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
     	
-    	lw	$a0, r_s
-    	jal	pega_valor_registrador_simulado
+    	lw	$a0, r_t
+    	jal	pega_registrador_simulado
     	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rs solicitado
     	lw	$t0, 8($sp)		# Recupera $t0
     	lw	$a0, 4($sp)		# Recupera $a0
-
-    	sw	$t1, 0($a0)		# Escreve endereço do rs na posição solicitada
-    	sw	$t0, 4($a0)		# Escreve endereço do rt na posição solicitada
+    	
+    	lw	$t2, 0($t0)
+    	lw	$t3, 0($t1)
+    	
+    	sw	$t0, 0($a0)		# Escreve endereço do rs na posição solicitada
+    	sw	$t1, 4($a0)		# Escreve endereço do rt na posição solicitada
+    	sw	$t2, 8($a0)		# Escreve endereço do rs na posição solicitada
+    	sw	$t3, 12($a0)		# Escreve endereço do rt na posição solicitada
     	
     	lw	$ra, 0($sp)		# Recupera endereço de retorno do procedimento
     	addi	$sp, $sp, 12		# Desaloca espaço da pilha
@@ -461,17 +471,12 @@ faddu:
 ################
 #### TIPO I ####
 fbne:
-    	lw	$a0, r_s
-    	jal	pega_valor_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
-    	
-    	lw	$a0, r_t
-    	jal	pega_valor_registrador_simulado
-    	move	$t1, $v0
-    	lw	$t0, 0($sp)
-    	addi	$sp, $sp, 4
+    	addi	$sp, $sp, -16
+    	move	$a0, $sp
+    	jal 	pega_rs_rt
+    	lw	$t0, 8($sp)
+    	lw	$t1, 12($sp)
+    	addi	$sp, $sp, 16
     	
     	beq  	$t0, $t1, bne_epilogo	# se $t0 e $t1 forem iguais, retorna e nÃ£o faz nada
     	
@@ -485,33 +490,28 @@ fbne:
     	bne_epilogo:
 	j	retorno_tipo_i
 faddi:	    
-    	addi	$sp, $sp, -8
+    	addi	$sp, $sp, -16
     	move	$a0, $sp
     	jal 	pega_rs_rt
-    	lw	$t0, 0($sp)
+    	lw	$t0, 8($sp)
     	lw	$t1, 4($sp)
-    	addi	$sp, $sp, 8
+    	addi	$sp, $sp, 16
+    	
     	lw	$t3, v_imediato		# $t3 <- v_imediato para somar
     	add 	$t0, $t0, $t3		# Soma valor do rt simulado com valor imediato
     	sw	$t0, 0($t1)		# Armazena soma no registrador rs simulado
 	j	retorno_tipo_i
 
 faddiu:
-    	lw	$a0, r_s
-    	jal	pega_registrador_simulado
-    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rs solicitado
-    	addi	$sp, $sp, -4		# Aloca espaço que será utilizado na pilha
-    	sw	$t0, 0($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
-    	
-    	lw	$a0, r_t
-    	jal	pega_registrador_simulado
-    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rt solicitado
-    	lw	$t0, 0($sp)		# Recupera $t0
-    	addi	$sp, $sp, 4		# Desaloca espaço na pilha
-    	
+    	addi	$sp, $sp, -16
+    	move	$a0, $sp
+    	jal 	pega_rs_rt
+    	lw	$t0, 0($sp)
+    	lw	$t1, 4($sp)
+    	lw	$t3, 8($sp)
+    	lw	$t4, 12($sp)
+    	addi	$sp, $sp, 16
     	lw	$t2, v_imediato		# $t2 <- valor imediato inserido
-    	lw	$t3, 0($t0)		# $t3 <- valor do registrador rs simulado
-    	lw	$t4, 0($t1)		# $t4 <- valor do registrador rt simulado
 
     	addu	$t3, $t3, $t2		# Realiza addiu
     	sw	$t3, 0($t1)		# Insere resultado no registrador rt simulado
@@ -526,18 +526,13 @@ flui:
  	sw	$t1, 0($t0)		# Insere resultado no registrador rt simulado
 	j	retorno_tipo_i
 
-fori:
-    	lw	$a0, r_s
-    	jal	pega_valor_registrador_simulado
-    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rs solicitado
-    	addi	$sp, $sp, -4		# Aloca espaço que será utilizado na pilha
-    	sw	$t0, 0($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
-    	
-    	lw	$a0, r_t
-    	jal	pega_registrador_simulado
-    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rt solicitado
-    	lw	$t0, 0($sp)		# Recupera $t0
-    	addi	$sp, $sp, 4		# Desaloca espaço na pilha
+fori:	
+    	addi	$sp, $sp, -16
+    	move	$a0, $sp
+    	jal 	pega_rs_rt
+    	lw	$t0, 8($sp)
+    	lw	$t1, 4($sp)
+    	addi	$sp, $sp, 16
     	
     	lw	$t2, v_imediato		# $t2 <- valor imediato inserido
     	or 	$t3, $t0, $t2		# Realiza o OR
