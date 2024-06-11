@@ -231,6 +231,7 @@ loop:
 	jal passa_instrucao
     	
     	jal decodifica
+    	jal executa
 
     	j loop
 loop_fim:
@@ -358,17 +359,23 @@ decodifica:
 	lw	$t0, PC			# $t0 <- valor de PC simulado
 	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
 	sw	$t0, PC			# Atualiza valor de PC
+	
+	lw	$ra, 0($sp)
+	addi    $sp, $sp, 4
+	jr      $ra
+executa:
+	addi    $sp, $sp, -4
+	sw 	$ra, 0($sp)
 
 	lw	$t0, op_code	
 	beqz    $t0, tipo_r		# if opcode == 0 instrucao do tipo r
 	bge 	$t0, 4, tipo_i		# else if opcode >= 4 instrucao do tipo i
 	j	tipo_j			# else instrucao do tipo j
-	ponto_retorno_decodificacao:
+	ponto_retorno_execucao:
 	
 	lw	$ra, 0($sp)
 	addi    $sp, $sp, 4
 	jr      $ra
-
 ####################################
 ## TIPOS DE OPERACAO ##
 tipo_r:
@@ -385,7 +392,7 @@ tipo_r:
 	beq  	$t0, 0x21, faddu
 	## ESCREVER OS OUTROS TIPOS DE FUNÃ‡ÃƒO R
 	retorno_tipo_r:
-	j       ponto_retorno_decodificacao
+	j       ponto_retorno_execucao
 tipo_i:    		
 	lw	$t0, op_code
 	beq  	$t0, 0x5, fbne
@@ -398,7 +405,7 @@ tipo_i:
 	beq  	$t0, 0x23, flw
 	retorno_tipo_i:
 	
-	j       ponto_retorno_decodificacao
+	j       ponto_retorno_execucao
 
 tipo_j:
 	#jal imprime_end
@@ -408,7 +415,7 @@ tipo_j:
 	beq  	$t0, 0x3, fjal
 	retorno_tipo_j:
 	
-	j       ponto_retorno_decodificacao
+	j       ponto_retorno_execucao
 	
 #######################
 ###### FUNCOES DO SIMULADOR ######
@@ -611,7 +618,8 @@ flw: # Precisa melhorar
     	lw	$t2, v_imediato		# $t4 <- valor imediato
     	lw	$t0, 4($sp)
     	
-	add	$t1, $t1, $t2		# Modifica endereÃ§o com base no valor imediato
+	add	$t0, $t0, $t2		# Modifica endereÃ§o com base no valor imediato
+	lw	$t0, 0($t0)
     	sw	$t0, 0($t1)		# Insere valor no endereco solicitado
     	
     	lw	$ra, 0($sp)
