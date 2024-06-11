@@ -46,54 +46,66 @@ passa_instrucao:
 	add	$t0, $t0, $t1		# $t0 <- endereÃ§o real da instruÃ§Ã£o simulada
 	lw	$t1, 0($t0)		# Carrega a instruÃ§Ã£o atual em $t1
 	sw	$t1, IR			# Armazena a instruÃ§Ã£o em IR
-	lw	$t0, PC			# $t0 <- valor de PC simulado
-	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
-	sw	$t0, PC			# Atualiza valor de PC
     	jr      $ra
-pega_endereco_pilha:
-	# $v0 -> retorno como endereço da pilha simulada
-	addi	$sp, $sp, -4		# Aloca empilhamento
-	sw	$ra, 0($sp)		# Empilha parametro $a0
+pega_end_pilha:
+	move	$t0, $a0		# $t0 <- endereço solicitado
+	lw	$t1, end_pilha		# $t1 <- endereço inicial de dados simulado
+	sub  	$t2, $t1, $t0		# $t2 <- end solicitado na pilha simulada
 	
-	li	$a0, 29
-	jal	pega_valor_registrador_simulado# Pega endereço atual da pilha simulada	
-	move	$t0, $v0		# $t0 <- endereço atual da pilha simulada
-	lw	$t1, end_pilha		# $t1 <- endereço inicial da pilha simulada
-	sub  	$t0, $t1, $t0		# $t0 <- diferença entre inicio da pilha e posição inicial
-	blez 	$t0, erro_fora_pilha
-	
-	la	$t2, m_pilha		# $t2 <- endereço final da pilha simulada
-	li 	$t3, 1024		# $t3 <- tamanho da pilha simulada
-	add	$t4, $t2, $t3		# $t4 <- endereço final da pilha	
-	sub	$t4, $t4, $t0		# $t4 <- endereço real de $sp simulado
-	move	$v0, $t4		# $v0 <- endereço real de $sp simulado
-	
-	lw	$ra, 0($sp)		# Desempilha parametro $a0
-	addi	$sp, $sp, 4		# Desaloca empilhamento
-	jr	$ra
-	
-pega_endereco_data:
+	la	$t3, m_pilha		# $t3 <- endereço final da pilha
+	lw	$t4, tam_pilha		# $t4 <- tamanho da pilha
+	add	$t3, $t3, $t4		# $t3 <- endereço inicial da pilha
+	sub	$t3, $t3, $t2		# $t3 <- endereço solicitado na pilha
+	move	$v0, $t3
+	j	prologo_converte_end
+pega_end_data:
 # $a0 recebe endereço solicitado do segmento de dados; 
 # $v0 -> retorno como endereço da pilha simulada
+	move	$t0, $a0		# $t0 <- endereço solicitado
+	lw	$t1, end_data		# $t1 <- endereço inicial de dados simulado
+	sub  	$t2, $t0, $t1		# $t2 <- diferença do end solicitado com o inicio o entereço de dados simulado
+	
+	la	$t3, m_data		# $t3 <- endereço inicial de dados
+	add	$t3, $t2, $t3		# $t3 <- endereço solicitado no segmento de texto simulado
+	move	$v0, $t3
+	j	prologo_converte_end
+pega_end_text:
+# $a0 recebe endereço solicitado do segmento de dados; 
+# $v0 -> retorno como endereço da pilha simulada
+	move	$t0, $a0		# $t0 <- endereço solicitado
+	lw	$t1, end_text		# $t1 <- endereço inicial de texto simulado
+	sub  	$t2, $t0, $t1		# $t2 <- diferença do end solicitado com o inicio o entereço de text simulado
+	
+	la	$t3, m_text		# $t3 <- endereço inicial de texto
+	add	$t3, $t2, $t3		# $t3 <- endereço solicitado no segmento de texto simulado
+	move	$v0, $t3
+	j	prologo_converte_end
+converte_end:
+# $a0 recebe endereço solicitado do segmento de dados; 
+# $v0 -> retorno como endereço correto
 	addi	$sp, $sp, -4		# Aloca empilhamento
 	sw	$ra, 0($sp)		# Empilha parametro $a0
 	
 	move	$t0, $a0
 	lw	$t1, end_data		# $t1 <- endereço inicial de dados simulado
-	######################################
-	# Verifica se endereço está dentro dos 
-	# endereços possíveis dos dados simulados
-	######################################
-	sub  	$t2, $t0, $t1		
-	move	$t3, $t2
-	bltz  	$t2, erro_fora_data
-	subi 	$t2, $t2, 1024
-	bgtz   	$t2, erro_fora_data
+	lw	$t2, end_pilha		# $t2 <- endereço inicial da pilha simulada
+	lw	$t3, end_text		# $t3 <- endereço inicial de texto simulado
+	lw	$t4, tam_data		# $t4 <- tamanho de dados simulado
+	add	$t4, $t4, $t1		# $t4 <- endereço final de dados simulados
+	lw	$t5, tam_pilha		# $t5 <- tamanho da pilha simulada
+	sub	$t5, $t5, $t2		# $t5 <- endereço final da pilha simulada
+	lw	$t6, tam_pilha		# $t6 <- tamanho de texto simulado
+	add	$t6, $t6, $t3		# $t6 <- endereço final de texto simulado
 	
-	la	$t2, m_data		# $t2 <- endereço inicial de dados
-	add	$t3, $t2, $t3		# $t4 <- endereço solicitado
-	move	$v0, $t3		# $v0 <- endereço real de $sp simulado
+	blt  	$t0, $t3, erro_fora_memoria# Endereço solicitado menor que o endereço inicial de texto = erro
+	blt  	$t0, $t6, pega_end_text	   # Endereço solicitado pertence ao segmento de texto
+	blt  	$t0, $t1, erro_fora_memoria# Endereço solicitado entre o inicio de dados e fim de texto = erro
+	blt  	$t0, $t4, pega_end_data    # Endereço solicitado pertence ao segmento de dados
+	blt  	$t0, $t5, erro_fora_memoria# Endereço solicitado entre o fim da pilha e o fim dos dados = erro
+	blt   	$t0, $t2, pega_end_pilha   # Endereço solicitado pertence ao segmento da pilha
+	j 	erro_fora_memoria
 	
+	prologo_converte_end:
 	lw	$ra, 0($sp)		# Desempilha parametro $a0
 	addi	$sp, $sp, 4		# Desaloca empilhamento
 	jr	$ra
@@ -124,24 +136,48 @@ pega_rd_rs_rt:
 #***************************************************		
 # PARAMETROS: 
 # $a0 <- endereço incial para salvar os dados de retorno
-# obs: tamanho do retorno = 24 bytes
+# obs: tamanho do retorno = 12 bytes
 # MAPAS: 
 # 	1-PILHA:
 #		0 = $ra
 #		4 = $a0
 #		8 = $t0
+#		12 = $t1
 # 	2-REGISTRADORES:
 #		$t0 = endereço do rd simulado
-#		$t1 = endereço do rs simulado
-#		$t2 = endereço do rt simulado
+#		$t1 = valor do rs simulado
+#		$t2 = valor do rt simulado
 # 	3-RETORNO:
-#		0($a0) = end_rs
-#		4($a0) = end_rt
-#		8($a0) = end_rt
-#		12($a0) = v_rs
-#		16($a0) = v_rt
-#		20($a0) = v_rt
+#		0($a0) = end_rd
+#		4($a0) = v_rs
+#		8($a0) = v_rt
 #***************************************************
+	addi	$sp, $sp, -16		# Aloca espaço da pilha
+	sw	$ra, 0($sp)		# Empilha endereço de retorno do procedimento
+	sw	$a0, 4($sp)		# Empilha parametro $a0
+	
+	lw	$a0, r_d
+    	jal	pega_registrador_simulado
+    	sw	$v0, 8($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
+    	
+    	lw	$a0, r_s
+    	jal	pega_valor_registrador_simulado
+    	sw	$v0, 12($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
+    	
+    	lw	$a0, r_t
+    	jal	pega_valor_registrador_simulado
+    	move	$t2, $v0		# $t1 <- valor do registrador rs solicitado
+    	lw	$a0, 4($sp)		# Recupera $a0
+    	lw	$t0, 8($sp)		# Recupera end rd em $t0
+    	lw	$t1, 12($sp)		# Recupera valor rs em $t1
+    	
+    	sw	$t0, 0($a0)		# Escreve endereço do rd na posição solicitada
+    	sw	$t1, 4($a0)		# Escreve valor do rs na posição solicitada
+    	sw	$t2, 8($a0)		# Escreve valor do rt na posição solicitada
+    	
+    	lw	$ra, 0($sp)		# Recupera endereço de retorno do procedimento
+    	addi	$sp, $sp, 16		# Desaloca espaço da pilha
+    	jr	$ra			# Retorna
 pega_rs_rt:
 #***************************************************		
 # PARAMETROS: 
@@ -319,11 +355,11 @@ decodifica:
 	jal 	pega_endereco
 	sw 	$v0, endereco
 	
-	#jal imprime_instrucao
-	#jal imprime_op_code
-	
-	lw	$t0, op_code
-	
+	lw	$t0, PC			# $t0 <- valor de PC simulado
+	addi	$t0, $t0, 4		# Soma 4 (tamanho de uma instrucao)
+	sw	$t0, PC			# Atualiza valor de PC
+
+	lw	$t0, op_code	
 	beqz    $t0, tipo_r		# if opcode == 0 instrucao do tipo r
 	bge 	$t0, 4, tipo_i		# else if opcode >= 4 instrucao do tipo i
 	j	tipo_j			# else instrucao do tipo j
@@ -383,12 +419,12 @@ sys_imprime_int:
     	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
     	li	$v0, 1			# $v0 <- 1 (serviÃ§o de imprimir int)
     	syscall
-    	j retorno_syscall
+    	j 	retorno_syscall
 sys_imprime_str:
     	li	$a0, 4			# $a0 <- 4 (numero do registrador a0 simulado)
     	jal	pega_registrador_simulado
     	lw	$a0, 0($v0)		# $a0 <- valor do $a0 simulado
-    	jal pega_endereco_data
+    	jal 	converte_end
     	move	$a0, $v0
     	li	$v0, 4			# $v0 <- 14 (serviÃ§o de imprimir str)
     	syscall
@@ -413,76 +449,43 @@ fjr:
     	lw	$a0, r_s
     	jal 	pega_valor_registrador_simulado
     	move	$t0, $v0		# $t0 <- valor do registrador rs simulado (endereÃ§o para ir)
-    	
     	la	$t1, PC			# $t1 <- endereÃ§o do PC simulado
     	sw	$t0, 0($t1)		# PC simulado <- endereÃ§o da instruÃ§Ã£o solicitada
-    	
 	j	retorno_tipo_r
-	
 fsyscall: 
     	li	$a0, 2
-    	jal pega_valor_registrador_simulado
+    	jal 	pega_valor_registrador_simulado
     	move	$t0, $v0
-    	
     	beq  	$t0, 0x1, sys_imprime_int
     	beq  	$t0, 0x4, sys_imprime_str
     	beq  	$t0, 0xb, sys_imprime_char
     	beq  	$t0, 0x11, sys_exit
-	
 	retorno_syscall:
 	j	retorno_tipo_r
 	
-fadd: 
-    	la	$t0, regs		# $t0 <- valor inicial dos endereÃ§os dos registradores simulados
+fadd: 	
+    	addi 	$sp, $sp, -12		# aloca 24bytes da pilha para receber os valores do procediemnto
+    	move	$a0, $sp		# move o endereço de escrita para $a0
+    	jal 	pega_rd_rs_rt
+    	lw	$t0, 0($sp)		# $t0 <- endereço do rd
+    	lw	$t1, 4($sp)		# $t1 <- valor do rs
+    	lw	$t2, 8($sp)		# $t2 <- valor do rt
+    	addi 	$sp, $sp, 12		# Desaloca espaço da pilha
     	
-    	lw	$t1, r_d		# $t1 <- numero do registrador de destino simulado
-    	li	$s0, 4			# Insere tamanho do registrador em $s0
-    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posiÃ§Ã£o
-    	mflo  	$t1			# $t1 <- registrador de destino simulado
-    	add 	$t2, $t0, $t1		# $t2 <- endereco do registrador de destino simulado
-    	
-    	lw	$t1, r_s
-    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posiÃ§Ã£o
-    	mflo  	$t1			# $t1 <- registrador de inicio da soma simulado
-    	add 	$t3, $t0, $t1		# $t3 <- endereco do registrador inicio da soma simulado
-    	
-    	lw	$t1, r_t
-    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posiÃ§Ã£o
-    	mflo  	$t1			# $t1 <- registrador dois da soma simulado
-    	add 	$t4, $t0, $t1		# $t4 <- endereco do registrador dois da soma simulado
-    	
-    	li	$s0, 4			# Insere tamanho do registrador em $s0
-    	mult	$t1, $s0		# Vai para o registrador chamado com base em seu tamanho * posiÃ§Ã£o
-    	mflo  	$t1			# $t1 <- registrador de destino
-    	
-    	lw	$t5, 0($t2)		# Valor do registrador de destino simulado
-    	lw	$t6, 0($t3)		# Valor do registrador um da soma simulado
-    	lw	$t7, 0($t4)		# Valor do registrador dois da soma simulado
-    	
-    	add	$t5, $t6, $t7		# Soma dos valores dos registradores da soma
-    	
-    	sw	$t5, 0($t2)		# Insere o valor da soma no registrador de destino simulado
-    	
+    	add	$t3, $t1, $t2		# Soma dos valores dos registradores da soma
+    	sw	$t3, 0($t0)		# Insere o valor da soma no registrador de destino simulado
 	j	retorno_tipo_r
 faddu: 
-    	la	$t0, regs		# $t0 <- valor inicial dos endereÃ§os dos registradores simulados
-
-    	lw	$t1, r_s		# $t1 <- numero do registrador rs
-    	sll	$t1, $t1, 2		# $t1 <- numero do registrador * 4
-    	add	$t1, $t1, $t0		# $t1 <- endereÃ§o do registrador rs
-    	lw	$t2, r_t		# $t2 <- numero do registrador rt
-    	sll	$t2, $t2, 2		# $t2 <- numero do registrador * 4
-    	add	$t2, $t2, $t0		# $t2 <- endereÃ§o do registrador rt
-    	lw	$t3, r_d		# $t3 <- numero do registrador rd
-    	sll	$t3, $t3, 2		# $t3 <- numero do registrador * 4
-    	add	$t3, $t3, $t0		# $t3 <- endereÃ§o do registrador rd
+	addi 	$sp, $sp, -12		# aloca 24bytes da pilha para receber os valores do procediemnto
+    	move	$a0, $sp		# move o endereço de escrita para $a0
+    	jal 	pega_rd_rs_rt
+    	lw	$t0, 0($sp)		# $t0 <- endereço do rd
+    	lw	$t1, 4($sp)		# $t1 <- valor do rs
+    	lw	$t2, 8($sp)		# $t2 <- valor do rt
+    	addi 	$sp, $sp, 12		# Desaloca espaço da pilha
     	
-    	lw	$t4, 0($t1)		# $t4 <- valor armazenado no endereÃ§o armazenado no rs
-    	lw	$t5, 0($t2)		# $t5 <- valor armazenado no endereÃ§o armazenado no rt
-    	
-    	add	$t5, $t4, $t5		# Modifica endereÃ§o com base no valor imediato
-    	sw	$t5, 0($t3)		# Insere valor no endereco solicitado
-    	
+    	addu	$t3, $t1, $t2		# Modifica endereÃ§o com base no valor imediato
+    	sw	$t3, 0($t0)		# Insere valor no endereco solicitado
 	j	retorno_tipo_r
 ################
 #### TIPO I ####
@@ -555,111 +558,64 @@ fori:
     	sw	$t3, 0($t1)		# Insere resultado no registrador rt simulado
 	j	retorno_tipo_i
 fmul:
-	addi	$sp, $sp, -8		# Aloca espaço que será utilizado na pilha
-    	lw	$a0, r_d
-    	jal	pega_registrador_simulado
-    	move	$t0, $v0		# $t0 <- endereço na memória do simulador do registrador rd solicitado
-    	sw	$t0, 0($sp)		# Empilha $t0 para guardar valor e poder ir para outros procedimentos
+	addi 	$sp, $sp, -12		# aloca 24bytes da pilha para receber os valores do procediemnto
+    	move	$a0, $sp		# move o endereço de escrita para $a0
+    	jal 	pega_rd_rs_rt
+    	lw	$t0, 0($sp)		# $t0 <- endereço do rd
+    	lw	$t1, 4($sp)		# $t1 <- valor do rs
+    	lw	$t2, 8($sp)		# $t2 <- valor do rt
+    	addi 	$sp, $sp, 12		# Desaloca espaço da pilha
     	
-    	lw	$a0, r_s
-    	jal	pega_valor_registrador_simulado
-    	move	$t1, $v0		# $t1 <- endereço na memória do simulador do registrador rs solicitado
-    	sw	$t1, 4($sp)		# Empilha $t1 para guardar valor e poder ir para outros procedimentos
-    	
-    	lw	$a0, r_t
-    	jal	pega_valor_registrador_simulado
-    	move	$t2, $v0		# $t2 <- endereço na memória do simulador do registrador rt solicitado
-    	lw	$t0, 0($sp)		# Recupera $t1
-    	lw	$t1, 4($sp)		# Recupera $t0
-    	addi	$sp, $sp, 8		# Desaloca espaço na pilha
-
-    	mul	$t1, $t1, $t2		# Realiza a multiplicação
-    	sw	$t1, 0($t0)		# Insere o valor da multiplicação no registrador rd simulado
+    	mul	$t3, $t1, $t2		# Realiza a multiplicação
+    	sw	$t3, 0($t0)		# Insere o valor da multiplicação no registrador rd simulado
 	j	retorno_tipo_i
-fsw:	# Precisa melhorar
-    	addiu	$sp, $sp, -4
-    	sw	$ra, 0($sp)
+fsw:
+    	addiu	$sp, $sp, -8		# Aloca espaço pilha
+    	sw	$ra, 0($sp)		# Empilha endereço de retorno
     	
     	lw	$a0, r_s
-    	jal	pega_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
+    	jal 	pega_valor_registrador_simulado
+    	move	$a0, $v0		# $a0 <- valor de rs
     	
-    	lw	$a0, r_t
-    	jal	pega_registrador_simulado
-    	move	$t1, $v0
-    	lw	$t0, 0($sp)
-    	addi	$sp, $sp, 4
+    	jal 	converte_end
+    	move	$t0, $v0		# $t0 <- valor real de memoria solicitado
+    	sw	$t0, 4($sp)		# Empilha rt
     	
-    	lw	$t5, v_imediato		# $t5 <- valor imediato
+    	lw	$a0, r_t		# $t2 <- valor de rs
+    	jal 	pega_valor_registrador_simulado
+    	move	$t1, $v0		# $t3 <- valor de rt
+    	lw	$t2, v_imediato		# $t4 <- valor imediato
+    	lw	$t0, 4($sp)
     	
-    	lw	$t6, 0($t0)		# $t6 <- valor armazenado no endereÃ§o armazenado no rs
-    	lw	$t7, 0($t1)		# $t7 <- valor armazenado no endereÃ§o armazenado no rt
-    	
-    	lw	$t8, end_pilha
-    	bge   	$t6, $t8, sw_data
-    	
-    	addiu	$sp, $sp, -12		# Aloca espaço na pilha
-    	sw	$t1, 0($sp)		# Empilha endereço do rt
-    	sw	$t5, 4($sp)		# Empilha valor imediato
-    	sw	$t7, 8($sp)		# Empilha valor armazenado no rt
-    	jal	pega_endereco_pilha
-    	move	$t6, $v0		# $t6 <- endereço apontado pelo sp simulado
-    	lw	$t1, 0($sp)		# Desempilha endereço do rt
-    	lw	$t5, 4($sp)		# Desempilha valor imediato
-    	lw	$t7, 8($sp)		# Desempilha valor armazenado no rt
-    	addiu	$sp, $sp, 12		# Desaloca espaço na pilha
-    	
-    	sw_data:
-	add	$t6, $t6, $t5		# Modifica endereÃ§o com base no valor imediato
-    	sw	$t7, 0($t6)		# Insere valor no endereco solicitado
+	add	$t0, $t0, $t2		# Modifica endereÃ§o com base no valor imediato
+    	sw	$t1, 0($t0)		# Insere valor no endereco solicitado
     	
     	lw	$ra, 0($sp)
-    	addiu	$sp, $sp, 4
+    	addiu	$sp, $sp, 8
 	j	retorno_tipo_i
 flw: # Precisa melhorar
-    	addiu	$sp, $sp, -4
-    	sw	$ra, 0($sp)
+    	addiu	$sp, $sp, -8		# Aloca espaço pilha
+    	sw	$ra, 0($sp)		# Empilha endereço de retorno
     	
     	lw	$a0, r_s
-    	jal	pega_registrador_simulado
-    	move	$t0, $v0
-    	addi	$sp, $sp, -4
-    	sw	$t0, 0($sp)
+    	jal 	pega_valor_registrador_simulado
+    	move	$a0, $v0		# $a0 <- valor de rs
     	
-    	lw	$a0, r_t
-    	jal	pega_registrador_simulado
-    	move	$t1, $v0
-    	lw	$t0, 0($sp)
-    	addi	$sp, $sp, 4
+    	jal 	converte_end
+    	move	$t0, $v0		# $t0 <- valor real de memoria solicitado
+    	sw	$t0, 4($sp)		# Empilha rt
     	
-    	lw	$t2, v_imediato		# $t2 <- valor imediato
+    	lw	$a0, r_t		# $t2 <- valor de rs
+    	jal 	pega_registrador_simulado
+    	move	$t1, $v0		# $t3 <- valor de rt
+    	lw	$t2, v_imediato		# $t4 <- valor imediato
+    	lw	$t0, 4($sp)
     	
-    	lw	$t4, 0($t0)		# $t4 <- valor armazenado no endereÃ§o armazenado no rs
-    	lw	$t5, 0($t1)		# $t5 <- valor armazenado no endereÃ§o armazenado no rt
-    	
-    	lw	$t8, end_pilha
-    	bge   	$t6, $t8, lw_data
-    	
-    	addiu	$sp, $sp, -12		# Aloca espaço na pilha
-    	sw	$t1, 0($sp)		# Empilha endereço do rt
-    	sw	$t2, 4($sp)		# Empilha valor imediato
-    	sw	$t5, 8($sp)		# Empilha valor armazenado no rt
-    	jal	pega_endereco_pilha
-    	move	$t4, $v0		# $t6 <- endereço apontado pelo sp simulado
-    	lw	$t1, 0($sp)		# Desempilha endereço do rt
-    	lw	$t2, 4($sp)		# Desempilha valor imediato
-    	lw	$t5, 8($sp)		# Desempilha valor armazenado no rt
-    	addiu	$sp, $sp, 12		# Desaloca espaço na pilha
-    	
-    	lw_data:
-	add	$t4, $t4, $t2		# Modifica endereÃ§o com base no valor imediato
-    	lw	$t5, 0($t4)		# Insere valor no endereco solicitado
-    	sw	$t5, 0($t1)
+	add	$t0, $t0, $t2		# Modifica endereÃ§o com base no valor imediato
+    	sw	$t0, 0($t1)		# Insere valor no endereco solicitado
     	
     	lw	$ra, 0($sp)
-    	addiu	$sp, $sp, 4
+    	addiu	$sp, $sp, 8
 	j	retorno_tipo_i
 ################
 #### TIPO J ####
@@ -668,8 +624,7 @@ fjal:
     	jal 	pega_registrador_simulado
     	lw	$t0, PC			# $t0 <- endereÃ§o da instruÃ§Ã£o atual
     	sw	$t0, 0($v0)		# $ra simulado <- endereÃ§o de retorno
-    	j 	fj			
-    	j	retorno_tipo_j
+    	j 	fj		
 fj: 	
     	lw	$t0, endereco		# $t0 <- endereÃ§o para pular
     	la	$t1, PC			# $t1 <- endereÃ§o do PC simulado
@@ -685,7 +640,7 @@ termina:
 	li      $v0, 4              	# CÃ³digo do sistema para imprimir string
     	syscall                     	# Chamada do sistema
     	li      $v0, 10             	# CÃ³digo do sistema para encerrar o programa
-    	syscall
+    	syscall				# Chamada do sistema
 erro_abertura:
     	la      $a0, msg_erro_abert 	# EndereÃ§o da mensagem de erro
     	j termina
@@ -699,11 +654,14 @@ erro_fora_pilha:
 erro_fora_data:
 	la	$a0, msg_erro_fora_data# EndereÃ§o da mensagem de erro
 	j termina
+erro_fora_text:
+	la	$a0, msg_erro_fora_text# EndereÃ§o da mensagem de erro
+	j termina
+erro_fora_memoria:
+	la	$a0, msg_erro_fora_memoria# EndereÃ§o da mensagem de erro
+	j termina
 #################################
-
 .data
-#memory:       .word 0xABCDE080
-
 ##### VARIAVEIS DA SIMULACAO #####
 PC:         	.word 0
 IR:         	.word 0
@@ -711,6 +669,9 @@ regs:       	.space 128
 m_text:   	.space 1024
 m_data:   	.space 1024
 m_pilha:  	.space 1024
+tam_text:   	.word 1024
+tam_data:   	.word 1024
+tam_pilha:  	.word 1024
 end_text:   	.word 0x00400000
 end_data:   	.word 0x10010000
 end_pilha:  	.word 0x7FFFEFFC
@@ -738,5 +699,7 @@ msg_erro_abert: .asciiz "Erro ao abrir o arquivo\n"
 msg_erro_leitura: .asciiz "Erro ao ler instrucao\n"
 msg_erro_fora_pilha: .asciiz "\nSolicitou endereço fora da pilha\n"
 msg_erro_fora_data: .asciiz "\nSolicitou endereço fora do segmento de dados\n"
+msg_erro_fora_text: .asciiz "\nSolicitou endereço fora do segmento de texto\n"
+msg_erro_fora_memoria: .asciiz "\nSolicitou endereço indevido de memoria\n"
 ########
 #####################################
