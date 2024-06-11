@@ -2,7 +2,7 @@
 # Trabalho 1 - Organizacao de Computadores
 #
 # Autores: Tales Cruz da Silva, Diego Rochenbach - Estudantes de Sistemas de Informacao na UFSM
-# DescriÃ§Ã£o: Simulador de um processador MIPS
+# Descrição: Simulador de um processador MIPS
 #
 #*******************************************************************************
 	 	  
@@ -18,68 +18,131 @@ ini:					# Processos de inicializaÃ§Ã£o do programa
 	jal	ajusta_pc_simulado
 	j 	main
 zera_registradores:
-	la	$t0, regs		#$t0 <- end inicial dos registradores simulados
-	li	$t1, 4			#$t1 <- 4(tamanho de um registrador)
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço inicial do array de registradores simulados, passando por cada registrador individualmente
+#		$t1 = tamanho de cada registrador simulado na memoria
+#***************************************************
+	la	$t0, regs		# $t0 <- end inicial dos registradores simulados
+	li	$t1, 4			# $t1 <- 4(tamanho de um registrador)
 	loop_zera_regs:
 	sw	$zero, 0($t0)		# Zera o valor do registrador
 	add	$t0, $t0, $t1		# Passo para o registrador seguinte
-	ble  	$t0, 128 loop_zera_regs	# Volta o loop se nÃ£o tiver chegado no final dos registradores
-	jr	$ra
+	ble  	$t0, 128 loop_zera_regs	# Volta o loop se não tiver chegado no final dos registradores
+	jr	$ra			# Retorna
 ajusta_sp_simulado:
-	la 	$t0, regs
-	addi	$t1, $t0, 116		# $t1 <- endereÃ§o do registrador $sp simulado
-	lw 	$t0, end_pilha		# $t0 <- endereÃ§o inicial da pilha simulada
-	sw	$t0, 0($t1)		# $sp simulado <- endereÃ§o inicial da pilha
-	jr	$ra	
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço inicial do array de registradores simulados
+#		$t1 = endereço do registrador $sp simulado
+#		$t2 = endereço teorico da pilha simulada
+#***************************************************
+	la 	$t0, regs		# $t0 <- end inicial dos registradores simulados
+	addi	$t1, $t0, 116		# $t1 <- end do registrador $sp simulado
+	lw 	$t2, end_pilha		# $t2 <- end inicial da pilha simulada
+	sw	$t2, 0($t1)		# $sp simulado <- end inicial da pilha
+	jr	$ra			# Retorna
 ajusta_pc_simulado:
-	la 	$t1, PC
-	lw	$t2, end_text
-	sw	$t2, 0($t1)		# PC simulado <- endereÃ§o inicial de cÃ³digo
-	jr	$ra
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço de PC simulado
+#		$t1 = endereço inicial teorico do segmento de texto simulado
+#***************************************************
+	la 	$t0, PC			# $t0 <- end do PC simulado
+	lw	$t1, end_text		# $t1 <- end inicial de texto
+	sw	$t1, 0($t0)		# PC simulado <- end inicial de texto
+	jr	$ra			# Retorna
 ##########################
 ### INTERNAS DO SIMULADOR ###	
-passa_instrucao:
-	lw	$t0, PC			# Carrega o endereco da instrucÃ£o atual
-	lw	$t1, end_text		# Carrega o endereco inicial das intruÃ§Ãµes simuladas
-	sub 	$t0, $t0, $t1		# Insere em $t0 a diferenÃ§a do PC para o endereÃ§o inicial de texto
-	la	$t1, m_text		# $t1 <- end inicial do .text simulado
-	add	$t0, $t0, $t1		# $t0 <- endereÃ§o real da instruÃ§Ã£o simulada
-	lw	$t1, 0($t0)		# Carrega a instruÃ§Ã£o atual em $t1
-	sw	$t1, IR			# Armazena a instruÃ§Ã£o em IR
-    	jr      $ra
+pega_instrucao:
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço de PC simulado
+#		$t1 = endereço inicial teorico do segmento de texto simulado
+#		$t2 = endereço na memoria simulada da instrução apontada por PC, tendo 0 o seu inicio
+#		$t3 = endereço inicial da memoria de texto simulada
+#		$t4 = endereço da proxima instrução na memoria de texto simulada
+#		$t5 = proxima instrução
+#***************************************************
+	lw	$t0, PC			# $t0 <- end do PC simulado
+	lw	$t1, end_text		# $t1 <- end inicial de texto
+	sub 	$t2, $t0, $t1		# $t2 <- end da proxima inst
+	la	$t3, m_text		# $t3 <- end inicial do .text simulado
+	add	$t4, $t2, $t3		# $t4 <- end real da inst simulada
+	lw	$t5, 0($t4)		# Carrega inst atual em $t1
+	sw	$t5, IR			# Armazena inst em IR
+    	jr      $ra			# Retorna
 pega_end_pilha:
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço solicitado para conversão
+#		$t1 = endereço inicial teorico da pilha
+#		$t2 = endereço na memoria simulada da pilha, tendo 0 o seu inicio
+#		$t3 = endereço inicial da memoria da pilha simulada
+#		$t4 = tamanho da pilha simulada
+#		$t5 = endereço inicial da pilha (final da memoria da pilha simulada)
+#		$t6 = endereço solicitado na pilha simulada
+# 	2-PARAMETROS:
+#		$a0 = endereço da pilha para ser convertido
+# 	3-RETORNOS:
+#		$v0 = endereço convertido para uma posição na memoria da pilha simulada
+#***************************************************
 	move	$t0, $a0		# $t0 <- endereço solicitado
 	lw	$t1, end_pilha		# $t1 <- endereço inicial de dados simulado
 	sub  	$t2, $t1, $t0		# $t2 <- end solicitado na pilha simulada
-	
 	la	$t3, m_pilha		# $t3 <- endereço final da pilha
 	lw	$t4, tam_pilha		# $t4 <- tamanho da pilha
-	add	$t3, $t3, $t4		# $t3 <- endereço inicial da pilha
-	sub	$t3, $t3, $t2		# $t3 <- endereço solicitado na pilha
-	move	$v0, $t3
-	j	prologo_converte_end
+	add	$t5, $t3, $t4		# $t5 <- endereço inicial da pilha
+	sub	$t6, $t5, $t2		# $t6 <- endereço solicitado na pilha
+	move	$v0, $t6		# $v0 <- $t6
+	j	prologo_converte_end	# Volta para o unico ponto de chamada
 pega_end_data:
-# $a0 recebe endereço solicitado do segmento de dados; 
-# $v0 -> retorno como endereço da pilha simulada
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço solicitado para conversão
+#		$t1 = endereço inicial teorico de dados
+#		$t2 = endereço na memoria simulada de dados, tendo 0 o seu inicio
+#		$t3 = endereço inicial da memoria de dados simulada
+#		$t4 = endereço na memoria do simulado do endereço solicitado
+# 	2-PARAMETROS:
+#		$a0 = endereço de dados para ser convertido
+# 	3-RETORNOS:
+#		$v0 = endereço convertido para uma posição na memoria de dados simulada
+#***************************************************
 	move	$t0, $a0		# $t0 <- endereço solicitado
 	lw	$t1, end_data		# $t1 <- endereço inicial de dados simulado
 	sub  	$t2, $t0, $t1		# $t2 <- diferença do end solicitado com o inicio o entereço de dados simulado
-	
 	la	$t3, m_data		# $t3 <- endereço inicial de dados
-	add	$t3, $t2, $t3		# $t3 <- endereço solicitado no segmento de texto simulado
-	move	$v0, $t3
-	j	prologo_converte_end
+	add	$t4, $t2, $t3		# $t4 <- endereço solicitado no segmento de dados simulado
+	move	$v0, $t4		# $v0 <- $t4
+	j	prologo_converte_end	# Volta para o unico ponto de chamada
 pega_end_text:
-# $a0 recebe endereço solicitado do segmento de dados; 
-# $v0 -> retorno como endereço da pilha simulada
+#***************************************************		
+# MAPAS: 
+# 	1-REGISTRADORES:
+#		$t0 = endereço solicitado para conversão
+#		$t1 = endereço inicial teorico de texto
+#		$t2 = endereço na memoria simulada de texto, tendo 0 o seu inicio
+#		$t3 = endereço inicial da memoria de texto simulada
+#		$t4 = endereço na memoria do simulado do endereço solicitado
+# 	2-PARAMETROS:
+#		$a0 = endereço de dados para ser convertido
+# 	3-RETORNOS:
+#		$v0 = endereço convertido para uma posição na memoria de dados simulada
+#***************************************************
 	move	$t0, $a0		# $t0 <- endereço solicitado
 	lw	$t1, end_text		# $t1 <- endereço inicial de texto simulado
-	sub  	$t2, $t0, $t1		# $t2 <- diferença do end solicitado com o inicio o entereço de text simulado
-	
+	sub  	$t2, $t0, $t1		# $t2 <- diferença do end solicitado com o inicio do end de text simulado
 	la	$t3, m_text		# $t3 <- endereço inicial de texto
-	add	$t3, $t2, $t3		# $t3 <- endereço solicitado no segmento de texto simulado
-	move	$v0, $t3
-	j	prologo_converte_end
+	add	$t4, $t2, $t3		# $t4 <- endereço solicitado no segmento de texto simulado
+	move	$v0, $t4		# $v0 <- $t4
+	j	prologo_converte_end	# Volta para o unico ponto de chamada
 converte_end:
 # $a0 recebe endereço solicitado do segmento de dados; 
 # $v0 -> retorno como endereço correto
@@ -138,15 +201,15 @@ pega_rd_rs_rt:
 # $a0 <- endereço incial para salvar os dados de retorno
 # obs: tamanho do retorno = 12 bytes
 # MAPAS: 
-# 	1-PILHA:
+# 	1-REGISTRADORES:
+#		$t0 = endereço do rd simulado
+#		$t1 = valor do rs simulado
+#		$t2 = valor do rt simulado
+# 	2-PILHA:
 #		0 = $ra
 #		4 = $a0
 #		8 = $t0
 #		12 = $t1
-# 	2-REGISTRADORES:
-#		$t0 = endereço do rd simulado
-#		$t1 = valor do rs simulado
-#		$t2 = valor do rt simulado
 # 	3-RETORNO:
 #		0($a0) = end_rd
 #		4($a0) = v_rs
@@ -225,19 +288,19 @@ pega_rs_rt:
     	jr	$ra			# Retorna
 ################
 main:
-	jal recebe_data
-    	jal recebe_text
+	jal recebe_data			# Insere arquivo .dat no segmento de dados simulado
+    	jal recebe_text			# Insere arquivo .bin no segmento de texto simulado
 loop:
-	jal passa_instrucao
+	jal pega_instrucao
     	
     	jal decodifica
     	jal executa
 
     	j loop
 loop_fim:
-    	jal fecha_arquivo
+    	jal 	fecha_arquivo
     	la	$a0, msg_sucesso
-    	j termina
+    	j 	termina
     	syscall                   	
 #### INSTRUCOES DE INTERACAO COM ARQUIVO ####
 abre_arquivo:	# recebe em $a0 o endereço do nome do arquivo
@@ -652,7 +715,6 @@ termina:
 erro_abertura:
     	la      $a0, msg_erro_abert 	# EndereÃ§o da mensagem de erro
     	j termina
-
 erro_leitura:
 	la	$a0, msg_erro_leitura 	# EndereÃ§o da mensagem de erro
 	j termina
@@ -695,7 +757,9 @@ endereco:	.word 0
 v_imediato:	.word 0
 
 arquivo_text:   .asciiz "trabalho_01-2024_1.bin"
+#arquivo_text:   .asciiz "teste1.bin"
 arquivo_data:   .asciiz "trabalh0_01-2024_1.dat"
+#arquivo_data:   .asciiz "teste1.dat"
 #############################################
 ############## STRINGS ##############
 #######
