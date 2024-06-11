@@ -611,7 +611,7 @@ flw: # Precisa melhorar
     	lw	$t2, v_imediato		# $t4 <- valor imediato
     	lw	$t0, 4($sp)
     	
-	add	$t0, $t0, $t2		# Modifica endereÃ§o com base no valor imediato
+	add	$t1, $t1, $t2		# Modifica endereÃ§o com base no valor imediato
     	sw	$t0, 0($t1)		# Insere valor no endereco solicitado
     	
     	lw	$ra, 0($sp)
