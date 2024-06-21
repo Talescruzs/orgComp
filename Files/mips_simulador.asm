@@ -1,7 +1,7 @@
 #*******************************************************************************
 # Trabalho 1 - Organizacao de Computadores
 #
-# Autores: Tales Cruz da Silva, Diego Rochenbach - Estudantes de Sistemas de Informacao na UFSM
+# Autores: Tales Cruz da Silva, Diego Rockenbach - Estudantes de Sistemas de Informacao na UFSM
 # Descrição: Simulador de um processador MIPS
 #
 #*******************************************************************************
@@ -638,6 +638,15 @@ fmul:
     	
     	mul	$t3, $t1, $t2		# Realiza a multiplicação
     	sw	$t3, 0($t0)		# Insere o valor da multiplicação no registrador rd simulado
+    	
+    	mflo 	$t0			# Carrega valor do LO da multiplicação para $t0
+    	la	$t1, LO			# $t1 <- endereço de LO simulado
+    	sw	$t0, 0($t1)		# Insere $t0 no endereço do LO simulado
+    	
+    	mfhi 	$t0			# Carrega valor do HI da multiplicação para $t0
+    	la	$t1, HI			# $t1 <- endereço de HI simulado
+    	sw	$t0, 0($t1)		# Insere $t0 no endereço do hi simulado
+    	
 	j	retorno_tipo_i
 fsw:
     	addiu	$sp, $sp, -8		# Aloca espaço pilha
@@ -735,6 +744,8 @@ erro_fora_memoria:
 ##### VARIAVEIS DA SIMULACAO #####
 PC:         	.word 0
 IR:         	.word 0
+LO:         	.word 0
+HI:         	.word 0
 regs:       	.space 128
 m_text:   	.space 1024
 m_data:   	.space 1024
