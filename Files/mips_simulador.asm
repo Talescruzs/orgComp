@@ -290,6 +290,7 @@ pega_rs_rt:
 main:
 	jal recebe_data			# Insere arquivo .dat no segmento de dados simulado
     	jal recebe_text			# Insere arquivo .bin no segmento de texto simulado
+    	jal 	fecha_arquivo
 loop:
 	jal pega_instrucao
     	
@@ -298,7 +299,6 @@ loop:
 
     	j loop
 loop_fim:
-    	jal 	fecha_arquivo
     	la	$a0, msg_sucesso
     	j 	termina
     	syscall                   	
